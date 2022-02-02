@@ -47,7 +47,7 @@ compose.desktop {
     application {
         mainClass = "moe.sdl.tracks.MainKt"
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Deb)
             packageName = "tracks"
             packageVersion = "1.0.0"
         }
