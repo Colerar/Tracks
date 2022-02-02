@@ -33,6 +33,13 @@ dependencies {
     implementation("io.ktor:ktor-client-websockets:$ktorVersion")
     implementation("io.ktor:ktor-client-encoding:$ktorVersion")
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
+    // bilibili api
+    implementation("moe.sdl.yabapi:yabapi-core-jvm:0.0.7")
+    // file system
+    implementation("com.squareup.okio:okio:3.0.0")
+    // log
+    implementation("io.github.microutils:kotlin-logging-jvm:2.1.21")
+    implementation("ch.qos.logback:logback-classic:1.2.10")
 }
 
 tasks.test {
