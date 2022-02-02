@@ -33,7 +33,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Linux deb artifact
-        path: build/compose/binaries/deb
+        path: ./build/compose/binaries/main/deb/*.deb
         
   buildDmg:
     runs-on: macos-latest
@@ -49,11 +49,11 @@ jobs:
       uses: gradle/gradle-build-action@bc3340afc5e3cc44f2321809ac090d731c13c514
       with:
         arguments: packageDmg
-    - name: upload a rtifact
+    - name: upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: macOS dmg artifact
-        path: build/compose/binaries/dmg
+        path: ./build/compose/binaries/main/dmg/*.dmg
         
   buildExe:
     runs-on: windows-latest
@@ -73,5 +73,5 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Windows exe artifact
-        path: build/compose/binaries/exe
+        path: ./build/compose/binaries/main/exe/*.exe
         
