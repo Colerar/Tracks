@@ -15,6 +15,11 @@ repositories {
     google()
     mavenCentral()
     maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+    maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+}
+
+configurations.all {
+    resolutionStrategy.cacheChangingModulesFor(0, "minutes")
 }
 
 val ktorVersion = "1.6.7"
@@ -35,7 +40,7 @@ dependencies {
     implementation("io.ktor:ktor-client-encoding:$ktorVersion")
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     // bilibili api
-    implementation("moe.sdl.yabapi:yabapi-core-jvm:0.0.7")
+    implementation("moe.sdl.yabapi:yabapi-core-jvm:0.0.8-SNAPSHOT")
     // file system
     implementation("com.squareup.okio:okio:3.0.0")
     // log
