@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "1.5.31"
+    kotlin("plugin.serialization") version "1.5.31"
     id("org.jetbrains.compose") version "1.0.0"
 }
 

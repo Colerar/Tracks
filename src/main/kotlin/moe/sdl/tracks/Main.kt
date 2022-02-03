@@ -11,7 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import moe.sdl.tracks.util.initYabapi
+import moe.sdl.tracks.config.initYabapi
 import mu.KotlinLogging
 
 private val logger = KotlinLogging.logger {}

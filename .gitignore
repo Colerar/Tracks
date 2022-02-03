@@ -3,6 +3,7 @@
 
 # Log file
 *.log
+/logs/
 
 # BlueJ files
 *.ctxt
@@ -100,4 +101,6 @@ gradle-app.setting
 
 # Yabapi Cache
 /cookies.json
-/tmp
+/tmp/
+/storage/
+/config/
