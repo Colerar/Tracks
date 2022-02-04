@@ -11,11 +11,13 @@ import moe.sdl.yabapi.storage.FileCookieStorage
 import okio.FileSystem
 import okio.Path.Companion.toPath
 
-internal val json = Json {
-    prettyPrint = true
-    isLenient = true
-    coerceInputValues = true
-    ignoreUnknownKeys = true
+internal val json by lazy {
+    Json {
+        prettyPrint = true
+        isLenient = true
+        coerceInputValues = true
+        ignoreUnknownKeys = true
+    }
 }
 
 internal val client by lazy {
