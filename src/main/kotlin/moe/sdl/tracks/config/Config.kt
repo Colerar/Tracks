@@ -31,7 +31,7 @@ internal fun initYabapi() = Yabapi.apply {
     if (!isInitializedYabapi) {
         defaultJson.getAndSet(json)
         yabapiLogLevel.getAndSet(
-            if (tracksConfig.isDebug) LogLevel.DEBUG else LogLevel.INFO
+            if (tracksPreference.isDebug) LogLevel.DEBUG else LogLevel.INFO
         )
         @Suppress("deprecation")
         log.getAndSet { tag, level, throwable, message ->

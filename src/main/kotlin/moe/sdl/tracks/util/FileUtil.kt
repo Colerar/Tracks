@@ -2,7 +2,7 @@ package moe.sdl.tracks.util
 
 import java.io.File
 import java.net.URLDecoder
-import moe.sdl.tracks.config.TracksConfig
+import moe.sdl.tracks.config.TracksPreference
 import mu.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
@@ -12,7 +12,7 @@ private val logger = KotlinLogging.logger {}
  */
 @Suppress("SpellCheckingInspection")
 fun getJarLocation(): File {
-    var path: String = TracksConfig::class.java.protectionDomain.codeSource.location.path.also {
+    var path: String = TracksPreference::class.java.protectionDomain.codeSource.location.path.also {
         logger.debug { "Got raw jar path: $it" }
     }
     if (System.getProperty("os.name").lowercase().contains("dows")) {
