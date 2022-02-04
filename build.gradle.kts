@@ -3,9 +3,9 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.5.31"
+    kotlin("jvm") version "1.6.10"
     kotlin("plugin.serialization") version "1.5.31"
-    id("org.jetbrains.compose") version "1.0.0"
+    id("org.jetbrains.compose") version "1.0.1-rc2"
 }
 
 group = "moe.sdl.tracks"
@@ -60,9 +60,24 @@ compose.desktop {
     application {
         mainClass = "moe.sdl.tracks.MainKt"
         nativeDistributions {
+            modules("java.compiler", "java.instrument", "java.sql", "jdk.unsupported", "java.naming")
+
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Deb)
             packageName = "tracks"
             packageVersion = "1.0.0"
+
+            val iconsRoot = project.file("./src/main/resources/icons")
+            macOS {
+                iconFile.set(iconsRoot.resolve("tracks.icns"))
+            }
+            windows {
+                iconFile.set(iconsRoot.resolve("tracks.ico"))
+                menuGroup = "Tracks"
+                upgradeUuid = "d43056ef-5ba7-42c6-9627-dd6d5f69330d"
+            }
+            linux {
+                iconFile.set(iconsRoot.resolve("tracks@250w.png"))
+            }
         }
     }
 }
