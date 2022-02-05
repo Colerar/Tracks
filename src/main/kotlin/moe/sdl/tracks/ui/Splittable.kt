@@ -66,7 +66,7 @@ internal fun VerticalSplitter(
     val density = LocalDensity.current
     Box(
         Modifier
-            .width(8.dp)
+            .width(32.dp)
             .fillMaxHeight()
             .run {
                 if (state.canResize) {

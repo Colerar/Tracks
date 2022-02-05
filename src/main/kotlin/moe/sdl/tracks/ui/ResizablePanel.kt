@@ -24,8 +24,9 @@ import androidx.compose.ui.unit.dp
 
 internal class PanelState {
     val collapsedSize = 24.dp
-    var expandedSize by mutableStateOf(300.dp)
-    val expandedSizeMin = 90.dp
+    var expandedSize by mutableStateOf(120.dp)
+    val expandedSizeMin = 120.dp
+    val expandedSizeMax = 120.dp
     var isExpanded by mutableStateOf(true)
     val splitter = SplitterState()
 }

@@ -28,6 +28,7 @@ import moe.sdl.tracks.config.tracksPreference
 import moe.sdl.tracks.consts.ICON_320W
 import moe.sdl.tracks.consts.TRAY_ICON_WHITE
 import moe.sdl.tracks.model.MainWindowState
+import moe.sdl.tracks.ui.MainView
 import mu.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
@@ -90,7 +91,9 @@ internal fun MainWindow(
             }
         }
         logger.info { "Main window showed" }
-        Surface {}
+        Surface {
+            MainView()
+        }
     }
 }
 
