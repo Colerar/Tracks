@@ -17,6 +17,7 @@ internal val json by lazy {
         isLenient = true
         coerceInputValues = true
         ignoreUnknownKeys = true
+        encodeDefaults = true
     }
 }
 

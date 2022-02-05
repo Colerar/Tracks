@@ -13,7 +13,7 @@ private val logger = KotlinLogging.logger {}
 @Suppress("SpellCheckingInspection")
 fun getJarLocation(): File {
     var path: String = TracksPreference::class.java.protectionDomain.codeSource.location.path.also {
-        logger.debug { "Got raw jar path: $it" }
+        logger.trace { "Got raw jar path: $it" }
     }
     if (System.getProperty("os.name").lowercase().contains("dows")) {
         path = path.substring(1)
