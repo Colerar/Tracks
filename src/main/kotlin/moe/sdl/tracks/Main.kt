@@ -6,6 +6,7 @@ import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.key.Key
@@ -20,10 +21,13 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberTrayState
 import androidx.compose.ui.window.rememberWindowState
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import moe.sdl.tracks.config.tracksPreference
 import moe.sdl.tracks.consts.ICON_320W
 import moe.sdl.tracks.consts.TRAY_ICON_WHITE
-import moe.sdl.tracks.model.MainViewState
+import moe.sdl.tracks.model.MainWindowState
 import mu.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
@@ -37,10 +41,11 @@ fun main() = application {
     logger.info { "   ██║   ██╔══██╗██╔══██║██║     ██╔═██╗ ╚════██║" }
     logger.info { "   ██║   ██║  ██║██║  ██║╚██████╗██║  ██╗███████║" }
     logger.info { "   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝" }
-    val state = MainViewState(
+    val state = MainWindowState(
         rememberWindowState(position = WindowPosition(Alignment.Center)),
         rememberTrayState(),
         remember { mutableStateOf(true) },
+        rememberCoroutineScope(),
     )
     val trayIcon = painterResource(TRAY_ICON_WHITE)
     Tray(icon = trayIcon, onAction = {
@@ -55,16 +60,16 @@ fun main() = application {
         })
     }, tooltip = "Tracks", state = state.tray)
     MaterialTheme {
-        mainWindow(this, state)
+        MainWindow(this, state)
     }
 }
 
 @ExperimentalComposeUiApi
 @Composable
 @Preview
-fun mainWindow(
+internal fun MainWindow(
     scope: ApplicationScope,
-    state: MainViewState,
+    state: MainWindowState,
 ) = scope.apply {
     val icon = painterResource(ICON_320W)
     Window(onCloseRequest = {
@@ -72,7 +77,8 @@ fun mainWindow(
         runBackground(state)
     }, icon = icon, title = "Tracks", visible = state.visible.value, state = state.window) {
         this.window.apply {
-            this.requestFocus()
+            isAlwaysOnTop = true
+            isAlwaysOnTop = false
         }
         MenuBar {
             Menu("窗口", mnemonic = 'F') {
@@ -88,13 +94,17 @@ fun mainWindow(
     }
 }
 
-fun runBackground(state: MainViewState) {
-    state.visible.value = false
-    if (!tracksPreference.hadFirstClose.also { logger.trace { "Checked hadFirstClose is $it" } }) {
-        logger.debug { "First close, try to send to send notification..." }
-        tracksPreference.hadFirstClose = true
-        state.tray.sendNotification(
-            Notification("Tracks 仍在后台运行", "您可以在设置中更改此行为", Notification.Type.Info)
-        )
+internal fun runBackground(
+    state: MainWindowState,
+    dispatcher: CoroutineDispatcher = Dispatchers.IO,
+) =
+    state.scope.launch(dispatcher) {
+        state.visible.value = false
+        if (!tracksPreference.hadFirstClose.also { logger.trace { "Checked hadFirstClose is $it" } }) {
+            logger.debug { "First close, try to send to send notification..." }
+            tracksPreference.hadFirstClose = true
+            state.tray.sendNotification(
+                Notification("Tracks 仍在后台运行", "您可以在设置中更改此行为", Notification.Type.Info)
+            )
+        }
     }
-}
