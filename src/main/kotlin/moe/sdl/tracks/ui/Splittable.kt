@@ -55,6 +55,7 @@ fun VerticalSplittable(
 class SplitterState {
     var canResize by mutableStateOf(true)
     var isResizing by mutableStateOf(false)
+    var alpha by mutableStateOf(1.0f)
 }
 
 @Composable
@@ -88,6 +89,6 @@ internal fun VerticalSplitter(
         Modifier
             .width(1.dp)
             .fillMaxHeight()
-            .background(color)
+            .background(color.copy(alpha = state.alpha))
     )
 }

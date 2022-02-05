@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.Icon
@@ -88,7 +90,7 @@ internal fun PanelIcon(
 ) {
     Box(
         Modifier
-            .height(40.dp)
+            .height(50.dp)
             .fillMaxWidth()
             .clickable {
                 state.rightPanelType = switchTo
@@ -103,10 +105,11 @@ internal fun PanelIcon(
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, text, Modifier.size(40.dp))
+            Icon(icon, text, Modifier.size(50.dp))
             Text(
                 text = text,
                 textAlign = TextAlign.Center,
+                modifier = Modifier.requiredWidth(50.dp)
             )
         }
     }
