@@ -36,13 +36,14 @@ internal fun initYabapi() = Yabapi.apply {
         )
         @Suppress("deprecation")
         log.getAndSet { tag, level, throwable, message ->
+            val msg by lazy { message().replace("\n", "\\n") }
             when (level) {
-                LogLevel.VERBOSE -> loggerWrapper.trace("$tag ${message()}", throwable)
-                LogLevel.DEBUG -> loggerWrapper.debug("$tag ${message()}", throwable)
-                LogLevel.INFO -> loggerWrapper.info("$tag ${message()}", throwable)
-                LogLevel.WARN -> loggerWrapper.warn("$tag ${message()}", throwable)
-                LogLevel.ERROR -> loggerWrapper.error("$tag ${message()}", throwable)
-                LogLevel.ASSERT -> loggerWrapper.error("----- ASSERT ERROR ----- $tag ${message()}", throwable)
+                LogLevel.VERBOSE -> loggerWrapper.trace("$tag $msg", throwable)
+                LogLevel.DEBUG -> loggerWrapper.debug("$tag $msg", throwable)
+                LogLevel.INFO -> loggerWrapper.info("$tag $msg", throwable)
+                LogLevel.WARN -> loggerWrapper.warn("$tag $msg", throwable)
+                LogLevel.ERROR -> loggerWrapper.error("$tag $msg", throwable)
+                LogLevel.ASSERT -> loggerWrapper.error("----- ASSERT ERROR ----- $tag $msg", throwable)
             }
         }
         isInitializedYabapi = true

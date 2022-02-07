@@ -1,6 +1,7 @@
 package moe.sdl.tracks
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
@@ -9,14 +10,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyShortcut
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.Notification
 import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberTrayState
@@ -31,17 +37,17 @@ import moe.sdl.tracks.model.MainWindowState
 import moe.sdl.tracks.ui.MainView
 import mu.KotlinLogging
 
-private val logger = KotlinLogging.logger {}
+private val logger by lazy { KotlinLogging.logger {} }
 
 @ExperimentalComposeUiApi
 fun main() = application {
-    logger.info { "Tracks launching!" }
-    logger.info { "████████╗██████╗  █████╗  ██████╗██╗  ██╗███████╗" }
-    logger.info { "╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██║ ██╔╝██╔════╝" }
-    logger.info { "   ██║   ██████╔╝███████║██║     █████╔╝ ███████╗" }
-    logger.info { "   ██║   ██╔══██╗██╔══██║██║     ██╔═██╗ ╚════██║" }
-    logger.info { "   ██║   ██║  ██║██║  ██║╚██████╗██║  ██╗███████║" }
-    logger.info { "   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝" }
+     logger.info { "Tracks launching!" }
+     logger.info { "████████╗██████╗  █████╗  ██████╗██╗  ██╗███████╗" }
+     logger.info { "╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██║ ██╔╝██╔════╝" }
+     logger.info { "   ██║   ██████╔╝███████║██║     █████╔╝ ███████╗" }
+     logger.info { "   ██║   ██╔══██╗██╔══██║██║     ██╔═██╗ ╚════██║" }
+     logger.info { "   ██║   ██║  ██║██║  ██║╚██████╗██║  ██╗███████║" }
+     logger.info { "   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝" }
     val state = MainWindowState(
         rememberWindowState(position = WindowPosition(Alignment.Center)),
         rememberTrayState(),
@@ -54,6 +60,7 @@ fun main() = application {
     }, menu = {
         Item("打开 Tracks", onClick = {
             state.visible.value = true
+            state.window.placement = WindowPlacement.Floating
         })
         Item("退出", onClick = {
             logger.info { "Tracks exit." }
@@ -76,11 +83,7 @@ internal fun MainWindow(
     Window(onCloseRequest = {
         logger.info { "Main window closed, still running in background..." }
         runBackground(state)
-    }, icon = icon, title = "Tracks", visible = state.visible.value, state = state.window) {
-        this.window.apply {
-            isAlwaysOnTop = true
-            isAlwaysOnTop = false
-        }
+    }, icon = icon, title = "Tracks", visible = state.visible.value, resizable = false, state = state.window) {
         MenuBar {
             Menu("窗口", mnemonic = 'F') {
                 Item("关闭", onClick = {
@@ -90,7 +93,7 @@ internal fun MainWindow(
                 }, shortcut = KeyShortcut(Key.W, meta = true))
             }
         }
-        logger.info { "Main window showed" }
+        // logger.info { "Main window showed" }
         Surface {
             MainView()
         }
@@ -100,14 +103,13 @@ internal fun MainWindow(
 internal fun runBackground(
     state: MainWindowState,
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
-) =
-    state.scope.launch(dispatcher) {
-        state.visible.value = false
-        if (!tracksPreference.hadFirstClose.also { logger.trace { "Checked hadFirstClose is $it" } }) {
-            logger.debug { "First close, try to send to send notification..." }
-            tracksPreference.hadFirstClose = true
-            state.tray.sendNotification(
-                Notification("Tracks 仍在后台运行", "您可以在设置中更改此行为", Notification.Type.Info)
-            )
-        }
+) = state.scope.launch(dispatcher) {
+    state.visible.value = false
+    if (!tracksPreference.hadFirstClose.also { logger.trace { "Checked hadFirstClose is $it" } }) {
+        logger.debug { "First close, try to send to send notification..." }
+        tracksPreference.hadFirstClose = true
+        state.tray.sendNotification(
+            Notification("Tracks 仍在后台运行", "您可以在设置中更改此行为", Notification.Type.Info)
+        )
     }
+}

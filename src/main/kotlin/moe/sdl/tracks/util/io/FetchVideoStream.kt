@@ -1,4 +1,4 @@
-package moe.sdl.tracks.util
+package moe.sdl.tracks.util.io
 
 import kotlin.coroutines.CoroutineContext
 import moe.sdl.yabapi.BiliClient
@@ -16,7 +16,7 @@ import moe.sdl.yabapi.enums.video.VideoFormat
 import moe.sdl.yabapi.util.encoding.bv
 import mu.KotlinLogging
 
-private val logger = KotlinLogging.logger {}
+private val logger by lazy { KotlinLogging.logger {} }
 
 internal val highestRequest = StreamRequest(
     qnQuality = QnQuality.V8K,

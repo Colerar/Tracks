@@ -7,7 +7,7 @@ import kotlinx.serialization.Transient
 import moe.sdl.tracks.consts.TRACKS_CONFIG_FILE
 import mu.KotlinLogging
 
-private val logger = KotlinLogging.logger {}
+private val logger by lazy { KotlinLogging.logger {} }
 
 internal val tracksPreference: TracksPreference by lazy {
     runBlocking { getOrCreatePreference(TracksPreference()) }.apply {

@@ -10,7 +10,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import mu.KotlinLogging
 
-private val logger = KotlinLogging.logger {}
+private val logger by lazy { KotlinLogging.logger {} }
 
 @Serializable
 internal abstract class Preference {

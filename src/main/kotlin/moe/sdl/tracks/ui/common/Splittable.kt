@@ -1,4 +1,4 @@
-package moe.sdl.tracks.ui
+package moe.sdl.tracks.ui.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation

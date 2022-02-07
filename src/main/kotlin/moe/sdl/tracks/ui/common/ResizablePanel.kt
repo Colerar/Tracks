@@ -1,4 +1,4 @@
-package moe.sdl.tracks.ui
+package moe.sdl.tracks.ui.common
 
 import androidx.compose.animation.core.Spring.StiffnessLow
 import androidx.compose.animation.core.SpringSpec

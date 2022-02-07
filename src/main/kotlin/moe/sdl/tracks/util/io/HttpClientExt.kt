@@ -1,4 +1,4 @@
-package moe.sdl.tracks.util
+package moe.sdl.tracks.util.io
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.receive
@@ -12,7 +12,7 @@ import io.ktor.utils.io.core.readBytes
 import java.io.File
 import mu.KotlinLogging
 
-private val logger = KotlinLogging.logger {}
+private val logger by lazy { KotlinLogging.logger {} }
 
 internal suspend fun HttpClient.downloadFile(url: String, dst: File, request: HttpRequestBuilder.() -> Unit) {
     get<HttpStatement>(url, request).execute {

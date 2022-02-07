@@ -1,11 +1,11 @@
-package moe.sdl.tracks.util
+package moe.sdl.tracks.util.io
 
 import java.io.File
 import java.net.URLDecoder
 import moe.sdl.tracks.config.TracksPreference
 import mu.KotlinLogging
 
-private val logger = KotlinLogging.logger {}
+private val logger by lazy { KotlinLogging.logger {} }
 
 /**
  * 获取当前 jar 文件绝对位置

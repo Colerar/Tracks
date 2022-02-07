@@ -36,13 +36,16 @@ dependencies {
     // Ktor
     implementation("io.ktor:ktor-client-core:$ktorVersion")
     // implementation("io.ktor:ktor-client-serialization:${Versions.ktor}")
-    implementation("io.ktor:ktor-client-websockets:$ktorVersion")
+    // implementation("io.ktor:ktor-client-websockets:$ktorVersion")
     implementation("io.ktor:ktor-client-encoding:$ktorVersion")
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     // bilibili api
     implementation("moe.sdl.yabapi:yabapi-core-jvm:0.0.8-SNAPSHOT")
     // file system
     implementation("com.squareup.okio:okio:3.0.0")
+    implementation("com.dropbox.mobile.store:store4:4.0.4-KT15")
+    // encodings
+    implementation("com.soywiz.korlibs.krypto:krypto-jvm:2.4.12")
     // log
     implementation("io.github.microutils:kotlin-logging-jvm:2.1.21")
     implementation("ch.qos.logback:logback-classic:1.2.10")
@@ -54,6 +57,7 @@ tasks.test {
 
 tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "15"
+    kotlinOptions.freeCompilerArgs += "-opt-in=kotlin.RequiresOptIn"
 }
 
 compose.desktop {

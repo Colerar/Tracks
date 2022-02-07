@@ -14,11 +14,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.Icon
+import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
@@ -34,6 +34,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import moe.sdl.tracks.model.RightPanelType
+import moe.sdl.tracks.ui.common.PanelState
+import moe.sdl.tracks.ui.common.ResizablePanel
+import moe.sdl.tracks.ui.common.VerticalSplittable
+import moe.sdl.tracks.ui.search.SearchView
+import mu.KotlinLogging
+
+private val logger by lazy { KotlinLogging.logger {} }
 
 internal class MainViewState {
     var rightPanelType by mutableStateOf(RightPanelType.SEARCH)
@@ -74,8 +82,16 @@ internal fun MainView() {
             }
         }
 
-        Box {
-//            TODO("Add right panel views")
+        Surface {
+            when (viewState.rightPanelType) {
+                RightPanelType.SEARCH -> SearchView()
+                RightPanelType.DOWNLOADING -> {
+                    // TODO(Downloading Panel")
+                }
+                RightPanelType.SETTINGS -> {
+                    // TODO("Settings")
+                }
+            }
         }
     }
 }

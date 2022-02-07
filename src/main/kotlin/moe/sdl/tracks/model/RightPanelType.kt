@@ -1,4 +1,4 @@
-package moe.sdl.tracks.ui
+package moe.sdl.tracks.model
 
 internal enum class RightPanelType {
     SEARCH,
