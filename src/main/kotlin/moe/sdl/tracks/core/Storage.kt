@@ -1,10 +1,9 @@
 package moe.sdl.tracks.core
 
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asSkiaBitmap
+import androidx.compose.ui.graphics.toAwtImage
 import com.dropbox.android.external.store4.Fetcher
 import com.dropbox.android.external.store4.MemoryPolicy
-import com.dropbox.android.external.store4.SourceOfTruth
 import com.dropbox.android.external.store4.StoreBuilder
 import java.io.File
 import kotlin.time.DurationUnit
@@ -19,7 +18,6 @@ import mu.KotlinLogging
 import okio.buffer
 import okio.sink
 import org.jetbrains.skia.EncodedImageFormat
-import org.jetbrains.skiko.toBufferedImage
 import org.jetbrains.skiko.toImage
 
 private val logger by lazy { KotlinLogging.logger {} }
@@ -35,12 +33,12 @@ internal val biliImgStore = StoreBuilder
             logger.debug { "Fetching for $url" }
             return@of loadImageBitmap(url)
         },
-        sourceOfTruth = SourceOfTruth.of(
-            nonFlowReader = ImageDiskCache::read,
-            writer = ImageDiskCache::write,
-            delete = ImageDiskCache::delete,
-            deleteAll = ImageDiskCache::deleteAll,
-        )
+//        sourceOfTruth = SourceOfTruth.of(
+//            nonFlowReader = ImageDiskCache::read,
+//            writer = ImageDiskCache::write,
+//            delete = ImageDiskCache::delete,
+//            deleteAll = ImageDiskCache::deleteAll,
+//        ),
     )
     .cachePolicy(
         MemoryPolicy.builder<String, ImageBitmap>()
@@ -66,7 +64,7 @@ internal object ImageDiskCache {
 
     suspend fun write(url: String, img: ImageBitmap) {
         val bytes =
-            img.asSkiaBitmap().toBufferedImage().toImage().encodeToData(format = EncodedImageFormat.WEBP)?.bytes
+            img.toAwtImage().toImage().encodeToData(format = EncodedImageFormat.WEBP)?.bytes
         if (bytes == null) {
             logger.warn { "Failed to write img cache for $url, unable to encode img data to bytes." }
             return

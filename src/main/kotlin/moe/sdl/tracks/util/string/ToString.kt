@@ -86,8 +86,8 @@ internal fun Long.toRelativeTime(
 
 internal fun Long.toAbsTime(
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
-) {
+): String {
     val ldt = Instant.fromEpochSeconds(this).toLocalDateTime(timeZone)
-    ldt.year.toString() + "-" + ldt.monthNumber.padZero() + "-" + ldt.dayOfMonth.padZero() + " " +
+    return ldt.year.toString() + "-" + ldt.monthNumber.padZero() + "-" + ldt.dayOfMonth.padZero() + " " +
             ldt.hour.padZero() + ":" + ldt.minute.padZero() + ":" + ldt.second.padZero()
 }

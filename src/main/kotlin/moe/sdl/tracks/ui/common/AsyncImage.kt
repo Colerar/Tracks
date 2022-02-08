@@ -1,10 +1,7 @@
 package moe.sdl.tracks.ui.common
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -14,12 +11,10 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.loadImageBitmap
 import androidx.compose.ui.res.loadSvgPainter
 import androidx.compose.ui.res.loadXmlImageVector
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.Dp
 import com.dropbox.android.external.store4.get
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -44,23 +39,23 @@ fun BiliImage(
     description: String = "图像",
     format: ImageFormat = ImageFormat.WEBP,
     quality: Int = 75,
-    width: Dp? = null,
-    height: Dp? = null,
+    pxWidth: Int? = null,
+    pxHeight: Int? = null,
+    onLoad: (ImageBitmap) -> Unit = {},
     modifier: Modifier = Modifier,
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    val density = LocalDensity.current
-    val pxW by remember { derivedStateOf { with(density) { width?.toPx()?.toInt() } } }
-    val pxH by remember { derivedStateOf { with(density) { height?.toPx()?.toInt() } } }
     AsyncImage(
-        load = { biliImgStore.get(buildImageUrl(url, format, quality, pxW, pxH)) },
+        load = {
+            biliImgStore.get(buildImageUrl(url, format, quality, pxWidth, pxHeight)).also {
+                onLoad(it)
+            }
+        },
         painterFor = { remember { BitmapPainter(it) } },
         contentDescription = description,
         dispatcher = dispatcher,
-        modifier = Modifier.apply {
-            width?.let { width(it) }
-            height?.let { height(it) }
-        }.then(modifier),
+        modifier = modifier,
+        contentScale = ContentScale.Crop
     )
 }
 

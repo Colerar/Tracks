@@ -1,6 +1,8 @@
 package moe.sdl.tracks.config
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.protobuf.ProtoBuf
 import moe.sdl.tracks.consts.YABAPI_COOKIE_STORAGE_FILE
 import moe.sdl.tracks.util.loggerWrapper
 import moe.sdl.yabapi.BiliClient
@@ -20,6 +22,9 @@ internal val json by lazy {
         encodeDefaults = true
     }
 }
+
+@OptIn(ExperimentalSerializationApi::class)
+internal val protoBuf = ProtoBuf
 
 internal val client by lazy {
     initYabapi()
