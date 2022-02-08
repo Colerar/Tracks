@@ -31,7 +31,7 @@ internal val biliImgStore = StoreBuilder
     .from(
         fetcher = Fetcher.of { url: String ->
             logger.debug { "Fetching for $url" }
-            return@of loadImageBitmap(url)
+            return@of runCatching { loadImageBitmap(url) }
         },
 //        sourceOfTruth = SourceOfTruth.of(
 //            nonFlowReader = ImageDiskCache::read,
@@ -41,10 +41,11 @@ internal val biliImgStore = StoreBuilder
 //        ),
     )
     .cachePolicy(
-        MemoryPolicy.builder<String, ImageBitmap>()
+        MemoryPolicy.builder<String, Result<ImageBitmap>>()
             .setWeigherAndMaxWeight(weigher = { _, data ->
                 // Suppose compression ratio 500, aka, 1080P == 4 MiB, weighted 4096±
-                (data.height * data.width) / 1000
+                data.onSuccess { return@setWeigherAndMaxWeight(it.height * it.width) / 1000 }
+                0
             }, 1024 * 20)
             .setExpireAfterWrite(10.toDuration(DurationUnit.MINUTES))
             .build()

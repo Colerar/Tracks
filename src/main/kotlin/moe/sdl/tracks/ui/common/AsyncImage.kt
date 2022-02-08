@@ -25,6 +25,8 @@ import java.io.IOException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import moe.sdl.tracks.consts.FAILED_TO_LOAD
+import moe.sdl.tracks.consts.RESOURCES_DIR
 import moe.sdl.tracks.core.biliImgStore
 import moe.sdl.yabapi.enums.ImageFormat
 import moe.sdl.yabapi.util.string.buildImageUrl
@@ -45,13 +47,17 @@ fun BiliImage(
     modifier: Modifier = Modifier,
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
+    val errorPlaceholder by lazy { loadImageBitmap(File("$RESOURCES_DIR/$FAILED_TO_LOAD")) }
     AsyncImage(
         load = {
-            biliImgStore.get(buildImageUrl(url, format, quality, pxWidth, pxHeight)).also {
-                onLoad(it)
+            biliImgStore.get(buildImageUrl(url, format, quality, pxWidth, pxHeight)).also { result ->
+                onLoad(result.getOrElse {
+                    logger.warn(it) { "Failed to load image $url, load placeholder" }
+                    errorPlaceholder
+                })
             }
         },
-        painterFor = { remember { BitmapPainter(it) } },
+        painterFor = { remember { BitmapPainter(it.getOrDefault(errorPlaceholder)) } },
         contentDescription = description,
         dispatcher = dispatcher,
         modifier = modifier,
