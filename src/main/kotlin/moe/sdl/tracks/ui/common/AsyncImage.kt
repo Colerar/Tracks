@@ -4,7 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -26,14 +25,18 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.sdl.tracks.consts.FAILED_TO_LOAD
-import moe.sdl.tracks.consts.RESOURCES_DIR
 import moe.sdl.tracks.core.biliImgStore
+import moe.sdl.tracks.util.encode.Md5
 import moe.sdl.yabapi.enums.ImageFormat
 import moe.sdl.yabapi.util.string.buildImageUrl
 import mu.KotlinLogging
 import org.xml.sax.InputSource
 
 private val logger by lazy { KotlinLogging.logger {} }
+
+private val errorPlaceholder by lazy {
+    loadImageBitmapResource(FAILED_TO_LOAD)
+}
 
 @Composable
 fun BiliImage(
@@ -45,9 +48,7 @@ fun BiliImage(
     pxHeight: Int? = null,
     onLoad: (ImageBitmap) -> Unit = {},
     modifier: Modifier = Modifier,
-    dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    val errorPlaceholder by lazy { loadImageBitmap(File("$RESOURCES_DIR/$FAILED_TO_LOAD")) }
     AsyncImage(
         load = {
             biliImgStore.get(buildImageUrl(url, format, quality, pxWidth, pxHeight)).also { result ->
@@ -57,16 +58,17 @@ fun BiliImage(
                 })
             }
         },
-        painterFor = { remember { BitmapPainter(it.getOrDefault(errorPlaceholder)) } },
+        painterFor = { BitmapPainter(it.getOrDefault(errorPlaceholder)) },
         contentDescription = description,
-        dispatcher = dispatcher,
         modifier = modifier,
-        contentScale = ContentScale.Crop
+        contentScale = ContentScale.Fit,
+        key = url
     )
 }
 
 @Composable
 internal fun <T> AsyncImage(
+    key: Any?,
     load: suspend () -> T,
     painterFor: @Composable (T) -> Painter,
     contentDescription: String,
@@ -74,7 +76,7 @@ internal fun <T> AsyncImage(
     contentScale: ContentScale = ContentScale.Fit,
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    val image: T? by produceState<T?>(null) {
+    val image: T? by produceState<T?>(null, key) {
         value = withContext(dispatcher) {
             try {
                 load()
@@ -97,6 +99,10 @@ internal fun <T> AsyncImage(
 
 internal fun loadImageBitmap(file: File): ImageBitmap =
     file.inputStream().buffered().use(::loadImageBitmap)
+
+internal fun loadImageBitmapResource(path: String): ImageBitmap =
+    Thread.currentThread().contextClassLoader.getResourceAsStream(path)?.use { it.buffered().use(::loadImageBitmap) }
+        ?: error("Failed to read resource at $path")
 
 internal fun loadSvgPainter(file: File, density: Density): Painter =
     file.inputStream().buffered().use { loadSvgPainter(it, density) }

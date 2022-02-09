@@ -9,11 +9,10 @@ import java.io.File
 import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime
 import kotlin.time.toDuration
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import moe.sdl.tracks.consts.BILI_IMG_CACHE_DIR
 import moe.sdl.tracks.ui.common.loadImageBitmap
 import moe.sdl.tracks.util.encode.Md5
+import moe.sdl.tracks.util.io.ensureCreate
 import mu.KotlinLogging
 import okio.buffer
 import okio.sink
@@ -71,13 +70,7 @@ internal object ImageDiskCache {
             return
         }
         val file = BiliImgCacheFile(url)
-        if (!file.exists()) {
-            logger.debug { "Creating cache file at ${file.absolutePath}" }
-            withContext(Dispatchers.IO) {
-                file.parentFile.mkdirs()
-                file.createNewFile()
-            }
-        }
+        file.ensureCreate()
         file.sink().use { it.buffer().write(bytes) }
     }
 

@@ -34,15 +34,14 @@ import mu.KotlinLogging
 
 private val logger by lazy { KotlinLogging.logger {} }
 
-@ExperimentalComposeUiApi
 fun main() = application {
-     logger.info { "Tracks launching!" }
-     logger.info { "████████╗██████╗  █████╗  ██████╗██╗  ██╗███████╗" }
-     logger.info { "╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██║ ██╔╝██╔════╝" }
-     logger.info { "   ██║   ██████╔╝███████║██║     █████╔╝ ███████╗" }
-     logger.info { "   ██║   ██╔══██╗██╔══██║██║     ██╔═██╗ ╚════██║" }
-     logger.info { "   ██║   ██║  ██║██║  ██║╚██████╗██║  ██╗███████║" }
-     logger.info { "   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝" }
+    logger.info { "Tracks launching!" }
+    logger.info { "████████╗██████╗  █████╗  ██████╗██╗  ██╗███████╗" }
+    logger.info { "╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██║ ██╔╝██╔════╝" }
+    logger.info { "   ██║   ██████╔╝███████║██║     █████╔╝ ███████╗" }
+    logger.info { "   ██║   ██╔══██╗██╔══██║██║     ██╔═██╗ ╚════██║" }
+    logger.info { "   ██║   ██║  ██║██║  ██║╚██████╗██║  ██╗███████║" }
+    logger.info { "   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝" }
     val state = MainWindowState(
         rememberWindowState(position = WindowPosition(Alignment.Center)),
         rememberTrayState(),
@@ -67,7 +66,7 @@ fun main() = application {
     }
 }
 
-@ExperimentalComposeUiApi
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 @Preview
 internal fun MainWindow(

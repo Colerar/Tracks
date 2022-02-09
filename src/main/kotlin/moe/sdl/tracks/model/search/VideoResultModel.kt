@@ -26,7 +26,7 @@ internal data class VideoResultModel(
     }
 }
 
-internal fun VideoResultBox(response: VideoInfoGetResponse): VideoResultModel {
+internal fun VideoResultModel(response: VideoInfoGetResponse): VideoResultModel {
     val data = response.data ?: return VideoResultModel.EMPTY
     fun Int?.toShow() = toStringOrDefault { it.toStringWithUnit() }
     return VideoResultModel(
@@ -37,7 +37,7 @@ internal fun VideoResultBox(response: VideoInfoGetResponse): VideoResultModel {
         like = data.stat?.like.toShow(),
         duration = (data.durationStr?.toIntOrNull() ?: data.durationLong?.toInt())
             .toStringOrDefault { it.secondsToDuration() },
-        authorName = data.authorName.toStringOrDefault(),
+        authorName = (data.owner?.name ?: data.authorName).toStringOrDefault(),
         date = data.releaseDate ?: data.uploadDate,
         parts = data.parts.map { VideoPartModel(it) }
     )

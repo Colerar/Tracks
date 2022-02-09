@@ -4,8 +4,6 @@ import moe.sdl.tracks.util.io.getJarLocation
 
 internal val JAR_DIR by lazy { getJarLocation() }
 
-internal val RESOURCES_DIR by lazy { "$JAR_DIR/resources" }
-
 internal val CONFIG_DIR by lazy { "$JAR_DIR/config" }
 
 internal val STORAGE_DIR by lazy { "$JAR_DIR/storage" }

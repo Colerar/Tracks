@@ -8,6 +8,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
+import moe.sdl.tracks.util.io.ensureCreate
 import mu.KotlinLogging
 
 private val logger by lazy { KotlinLogging.logger {} }
@@ -43,9 +44,7 @@ internal suspend inline fun <reified T : Preference> getOrCreatePreference(defau
         logger.debug { "Path $absPath not exist, try to create..." }
         default.apply {
             mutex.withLock {
-                file.parentFile.mkdirs()
-                file.createNewFile()
-                file.writeText(json.encodeToString(this))
+                file.ensureCreate()
             }
         }
     }

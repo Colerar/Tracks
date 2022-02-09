@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
@@ -45,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import moe.sdl.tracks.core.trimBiliNumber
+import moe.sdl.yabapi.util.encoding.bv
 import mu.KotlinLogging
 
 private val logger by lazy { KotlinLogging.logger {} }
@@ -84,15 +86,18 @@ internal fun SearchView() {
             ) {
                 val color = Color(200, 0, 0)
                 Icon(Icons.Default.Warning, "错误警告", Modifier.width(30.dp).padding(horizontal = 3.dp), color)
-                Text("输入错误! 应该输入带有 av, BV, md, ss, ep 等前缀的号码或其链接.", color = color)
+                SelectionContainer {
+                    Text("输入错误! 应该输入带有 av, BV, md, ss, ep 等前缀的号码或其链接.", color = color)
+                }
             }
         }
-        if (!trimmed.isNullOrBlank()) { Text(trimmed!!)
-        }
         AnimatedVisibility(
-            !isError,
+            !trimmed.isNullOrBlank(),
         ) {
-
+            when {
+                trimmed?.startsWith("bv", ignoreCase = true) == true -> VideoResultView(trimmed!!)
+                trimmed?.startsWith("av", ignoreCase = true) == true -> VideoResultView(trimmed!!.bv)
+            }
         }
     }
 }

@@ -2,6 +2,8 @@ package moe.sdl.tracks.util.io
 
 import java.io.File
 import java.net.URLDecoder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import moe.sdl.tracks.config.TracksPreference
 import mu.KotlinLogging
 
@@ -24,5 +26,13 @@ fun getJarLocation(): File {
     }
     return File(URLDecoder.decode(path.replace("target/classes/", ""), Charsets.UTF_8)).also {
         logger.debug { "Finally processed jar path: ${it.absolutePath}" }
+    }
+}
+
+internal suspend fun File.ensureCreate() = withContext(Dispatchers.IO) {
+    if (!this@ensureCreate.exists()) {
+        logger.info { "Creating file at ${this@ensureCreate.absolutePath}" }
+        this@ensureCreate.parentFile?.mkdirs()
+        this@ensureCreate.createNewFile()
     }
 }
