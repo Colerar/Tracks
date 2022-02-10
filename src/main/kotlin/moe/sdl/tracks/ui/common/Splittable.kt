@@ -56,18 +56,18 @@ class SplitterState {
     var canResize by mutableStateOf(true)
     var isResizing by mutableStateOf(false)
     var alpha by mutableStateOf(1.0f)
+    var color by mutableStateOf(Color.LightGray)
 }
 
 @Composable
 internal fun VerticalSplitter(
     state: SplitterState,
-    color: Color = Color.Gray,
     onResize: (delta: Dp) -> Unit = {},
 ) = Box {
     val density = LocalDensity.current
     Box(
         Modifier
-            .width(32.dp)
+            .width(4.dp)
             .fillMaxHeight()
             .run {
                 if (state.canResize) {
@@ -89,6 +89,6 @@ internal fun VerticalSplitter(
         Modifier
             .width(1.dp)
             .fillMaxHeight()
-            .background(color.copy(alpha = state.alpha))
+            .background(state.color.copy(alpha = state.alpha))
     )
 }

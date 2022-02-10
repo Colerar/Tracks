@@ -23,12 +23,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 
 internal class PanelState {
-    val collapsedSize = 24.dp
+    var collapsedSize = 24.dp
     var expandedSize by mutableStateOf(120.dp)
-    val expandedSizeMin = 120.dp
-    val expandedSizeMax = 120.dp
+    var expandedSizeMin = 120.dp
+    var expandedSizeMax = 120.dp
     var isExpanded by mutableStateOf(true)
     val splitter = SplitterState()
+    var showIcon by mutableStateOf(true)
 }
 
 @Composable
@@ -45,18 +46,20 @@ internal fun ResizablePanel(
             content()
         }
 
-        Icon(
-            if (state.isExpanded) Icons.Default.ArrowBack else Icons.Default.ArrowForward,
-            contentDescription = if (state.isExpanded) "收起" else "展开",
-            tint = LocalContentColor.current,
-            modifier = Modifier
-                .padding(top = 4.dp)
-                .width(24.dp)
-                .clickable {
-                    state.isExpanded = !state.isExpanded
-                }
-                .padding(4.dp)
-                .align(Alignment.TopEnd)
-        )
+        if (state.showIcon) {
+            Icon(
+                if (state.isExpanded) Icons.Default.ArrowBack else Icons.Default.ArrowForward,
+                contentDescription = if (state.isExpanded) "收起" else "展开",
+                tint = LocalContentColor.current,
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .width(24.dp)
+                    .clickable {
+                        state.isExpanded = !state.isExpanded
+                    }
+                    .padding(4.dp)
+                    .align(Alignment.TopEnd)
+            )
+        }
     }
 }

@@ -34,11 +34,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import moe.sdl.tracks.model.RightPanelType
 import moe.sdl.tracks.ui.common.PanelState
 import moe.sdl.tracks.ui.common.ResizablePanel
 import moe.sdl.tracks.ui.common.VerticalSplittable
+import moe.sdl.tracks.ui.download.DownloadView
 import moe.sdl.tracks.ui.search.SearchView
+import moe.sdl.tracks.ui.settings.SettingsView
 import mu.KotlinLogging
 
 private val logger by lazy { KotlinLogging.logger {} }
@@ -85,12 +88,8 @@ internal fun MainView() {
         Surface {
             when (viewState.rightPanelType) {
                 RightPanelType.SEARCH -> SearchView()
-                RightPanelType.DOWNLOADING -> {
-                    // TODO(Downloading Panel")
-                }
-                RightPanelType.SETTINGS -> {
-                    // TODO("Settings")
-                }
+                RightPanelType.DOWNLOADING -> DownloadView()
+                RightPanelType.SETTINGS -> SettingsView()
             }
         }
     }
@@ -124,6 +123,7 @@ internal fun PanelIcon(
             Icon(icon, text, Modifier.size(50.dp))
             Text(
                 text = text,
+                fontSize = 16.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.requiredWidth(50.dp)
             )
