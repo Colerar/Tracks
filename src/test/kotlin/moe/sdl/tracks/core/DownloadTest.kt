@@ -1,4 +1,4 @@
-package moe.sdl.tracks
+package moe.sdl.tracks.core
 
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.headers
@@ -17,8 +17,6 @@ import moe.sdl.yabapi.data.stream.CodecId
 import moe.sdl.yabapi.data.stream.QnQuality
 import mu.KotlinLogging
 import org.junit.jupiter.api.Test
-
-private val logger by lazy { KotlinLogging.logger {} }
 
 class DownloadTest {
 
