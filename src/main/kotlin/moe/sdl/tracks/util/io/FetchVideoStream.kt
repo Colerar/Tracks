@@ -1,6 +1,7 @@
 package moe.sdl.tracks.util.io
 
 import kotlin.coroutines.CoroutineContext
+import moe.sdl.tracks.util.Log
 import moe.sdl.yabapi.BiliClient
 import moe.sdl.yabapi.api.fetchPgcStream
 import moe.sdl.yabapi.api.fetchVideoStream
@@ -14,9 +15,6 @@ import moe.sdl.yabapi.data.stream.VideoFnvalFormat
 import moe.sdl.yabapi.data.stream.VideoStreamResponse
 import moe.sdl.yabapi.enums.video.VideoFormat
 import moe.sdl.yabapi.util.encoding.bv
-import mu.KotlinLogging
-
-private val logger by lazy { KotlinLogging.logger {} }
 
 internal val highestRequest = StreamRequest(
     qnQuality = QnQuality.V8K,
@@ -48,7 +46,7 @@ internal fun AbstractStreamData.filterDashTracks(
     quality: QnQuality,
 ): DashTrack? {
     val dash = this.dash ?: return run {
-        logger.warn { "Try to filter dash tracks but null dash stream find." }
+        Log.debug { "Try to filter dash tracks but null dash stream find." }
         null
     }
     return dash.videos.asSequence()

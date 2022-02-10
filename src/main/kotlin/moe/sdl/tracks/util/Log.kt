@@ -1,7 +1,12 @@
 package moe.sdl.tracks.util
 
-@Deprecated("This property is only for wrapper propose, do not use it for internal logging",
-    ReplaceWith("private val logger = mu.KotlinLogging.logger {}"),
-    DeprecationLevel.WARNING
-)
-internal val loggerWrapper = mu.KotlinLogging.logger {  }
+import moe.sdl.tracks.config.tracksPreference
+
+object Log {
+    fun debug(throwable: Throwable? = null, lazyMessage: () -> String) {
+        if (tracksPreference.isDebug) {
+            println(lazyMessage())
+            println(throwable.toString())
+        }
+    }
+}

@@ -31,12 +31,10 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import moe.sdl.tracks.config.protoBuf
-import mu.KotlinLogging
+import moe.sdl.tracks.util.Log
 import okio.buffer
 import okio.sink
 import okio.source
-
-private val logger by lazy { KotlinLogging.logger {} }
 
 @OptIn(ExperimentalContracts::class)
 internal suspend fun HttpClient.downloadFile(
@@ -51,10 +49,10 @@ internal suspend fun HttpClient.downloadFile(
             while (packet.isNotEmpty) {
                 val bytes = packet.readBytes()
                 dst.appendBytes(bytes)
-                logger.trace { ("Received ${dst.length()} bytes from ${it.contentLength()}") }
+                Log.debug { ("Received ${dst.length()} bytes from ${it.contentLength()}") }
             }
         }
-        logger.info { "A File saved to ${dst.path}, size: ${dst.length()}" }
+        Log.debug { "A File saved to ${dst.path}, size: ${dst.length()}" }
     }
 }
 
@@ -117,13 +115,13 @@ internal suspend fun HttpClient.downloadResumable(
     val sideFile = File(dst.parent, ".${dst.nameWithoutExtension}.tracksdown")
     var sideData: SideData? by Delegates.observable(null) { _, _, new ->
         sideFile.apply { writeBytes(protoBuf.encodeToByteArray(new)) }
-        logger.debug { "SideData updated: $new" }
+        Log.debug { "SideData updated: $new" }
     }
 
     // [dst] exists but side file not, may be duplicated
     if (!dst.exists() && sideFile.exists()) {
         if (onDuplicate()) {
-            logger.info { "Stopping download, due to file name shadowed." }
+            Log.debug { "Stopping download, due to file name shadowed." }
             return
         }
         dst.apply {
@@ -161,14 +159,14 @@ internal suspend fun HttpClient.downloadResumable(
             downloadFile(url, part.file, getBuilder = {
                 getBuilder()
                 header(HttpHeaders.Range, "bytes=${start + part.file.length()}-$end".also {
-                    logger.debug { "Range header: $it" }
+                    Log.debug { "Range header: $it" }
                 })
                 onReceive(part.file.length(), end)
             })
             sideData = sideData!!.copy().apply {
                 parts[index] = parts[index].copy(finished = true)
             }
-            logger.info { "Part ${part.file.absolutePath}, finished download" }
+            Log.debug { "Part ${part.file.absolutePath}, finished download" }
         }
     }.orEmpty().awaitAll()
     dst.sink().use { sink ->

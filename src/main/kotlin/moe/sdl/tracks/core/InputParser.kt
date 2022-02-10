@@ -6,7 +6,6 @@ import moe.sdl.tracks.config.client
 
 private val pureNumberRegex by lazy { Regex("""^([aA][vV]\d+|[bB][vV]\w+|[eE][pP]\d+|[mM][dD]\d+|[sS]{2}\d+)$""") }
 private val shortLinkRegex by lazy { Regex("""^(https?://)?(www\.)?b23\.tv/(\w+)$""") }
-private val hrefElementRegex by lazy { Regex("""<a href="(.+)">""") }
 private val bvAvUrlRegex by lazy { Regex("""^(https?://)?(www\.)?bilibili\.com/video/([bB][vV]\w+|[aA][vV]\d+)""") }
 private val mdUrlRegex by lazy { Regex("""^(https?://)?(www\.)?bilibili\.com/bangumi/media/([mM][dD]\d+)""") }
 private val epUrlRegex by lazy { Regex("""^(https?://)?(www\.)?bilibili\.com/bangumi/play/([eE][pP]\d+|[sS]{2}\d+)""") }

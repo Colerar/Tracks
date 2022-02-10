@@ -8,10 +8,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
+import moe.sdl.tracks.util.Log
 import moe.sdl.tracks.util.io.ensureCreate
-import mu.KotlinLogging
-
-private val logger by lazy { KotlinLogging.logger {} }
 
 @Serializable
 internal abstract class Preference {
@@ -20,12 +18,12 @@ internal abstract class Preference {
 }
 
 internal suspend inline fun <reified T : Preference> T.save() = mutex.withLock {
-    logger.info { "Saving ${T::class.qualifiedName} to ${file.absolutePath}" }
+    Log.debug { "Saving ${T::class.qualifiedName} to ${file.absolutePath}" }
     file.writeText(json.encodeToString(this))
 }
 
 internal inline fun <reified T : Preference> T.addShutdownSaveHook() {
-    logger.debug { "Adding shutdown save hook for ${T::class.qualifiedName}" }
+    Log.debug { "Adding shutdown save hook for ${T::class.qualifiedName}" }
     Runtime.getRuntime().addShutdownHook(Thread {
         runBlocking { save() }
     })
@@ -36,12 +34,12 @@ internal suspend inline fun <reified T : Preference> getOrCreatePreference(defau
     val absPath = file.absolutePath
     return if (file.exists()) {
         default.mutex.withLock {
-            logger.debug { "Reading preference from file $absPath" }
+            Log.debug { "Reading preference from file $absPath" }
             val text = file.readText()
             json.decodeFromString(text)
         }
     } else {
-        logger.debug { "Path $absPath not exist, try to create..." }
+        Log.debug { "Path $absPath not exist, try to create..." }
         default.apply {
             mutex.withLock {
                 file.ensureCreate()

@@ -4,7 +4,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import moe.sdl.tracks.consts.YABAPI_COOKIE_STORAGE_FILE
-import moe.sdl.tracks.util.loggerWrapper
+import moe.sdl.tracks.util.Log
 import moe.sdl.yabapi.BiliClient
 import moe.sdl.yabapi.Yabapi
 import moe.sdl.yabapi.consts.getDefaultHttpClient
@@ -40,16 +40,9 @@ internal fun initYabapi() = Yabapi.apply {
             if (tracksPreference.isDebug) LogLevel.DEBUG else LogLevel.INFO
         )
         @Suppress("deprecation")
-        log.getAndSet { tag, level, throwable, message ->
+        log.getAndSet { tag, _, throwable, message ->
             val msg by lazy { message().replace("\n", "\\n") }
-            when (level) {
-                LogLevel.VERBOSE -> loggerWrapper.trace("$tag $msg", throwable)
-                LogLevel.DEBUG -> loggerWrapper.debug("$tag $msg", throwable)
-                LogLevel.INFO -> loggerWrapper.info("$tag $msg", throwable)
-                LogLevel.WARN -> loggerWrapper.warn("$tag $msg", throwable)
-                LogLevel.ERROR -> loggerWrapper.error("$tag $msg", throwable)
-                LogLevel.ASSERT -> loggerWrapper.error("----- ASSERT ERROR ----- $tag $msg", throwable)
-            }
+            Log.debug(throwable) { "$tag $msg" }
         }
         isInitializedYabapi = true
     }
