@@ -5,9 +5,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import moe.sdl.tracks.consts.TRACKS_CONFIG_FILE
-import mu.KotlinLogging
-
-private val logger by lazy { KotlinLogging.logger {} }
 
 internal val tracksPreference: TracksPreference by lazy {
     runBlocking { getOrCreatePreference(TracksPreference()) }.apply {
@@ -18,7 +15,6 @@ internal val tracksPreference: TracksPreference by lazy {
 @Serializable
 internal class TracksPreference(
     var isDebug: Boolean = true,
-    var hadFirstClose: Boolean = false,
 ) : Preference() {
     @Transient
     override val file: File = File(TRACKS_CONFIG_FILE)
