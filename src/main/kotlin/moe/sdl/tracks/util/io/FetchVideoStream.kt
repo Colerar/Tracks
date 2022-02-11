@@ -16,7 +16,7 @@ import moe.sdl.yabapi.data.stream.VideoStreamResponse
 import moe.sdl.yabapi.enums.video.VideoFormat
 import moe.sdl.yabapi.util.encoding.bv
 
-internal val highestRequest = StreamRequest(
+val highestRequest = StreamRequest(
     qnQuality = QnQuality.V8K,
     fnvalFormat = VideoFnvalFormat(
         format = VideoFormat.DASH,
@@ -26,22 +26,22 @@ internal val highestRequest = StreamRequest(
         needDolby = true
     ))
 
-internal suspend inline fun BiliClient.fetchVideoDashTracks(
+suspend inline fun BiliClient.fetchVideoDashTracks(
     bid: String,
     cid: Int,
     context: CoroutineContext = this.context,
 ): VideoStreamResponse = fetchVideoStream(bid, cid, highestRequest, context)
 
-internal suspend inline fun BiliClient.fetchVideoDashTracks(
+suspend inline fun BiliClient.fetchVideoDashTracks(
     aid: Int, cid: Int, context: CoroutineContext = this.context,
 ): VideoStreamResponse = fetchVideoDashTracks(aid.bv, cid, context)
 
-internal suspend inline fun BiliClient.fetchPgcDashTracks(
+suspend inline fun BiliClient.fetchPgcDashTracks(
     epId: Int,
     context: CoroutineContext = this.context,
 ): PgcStreamResponse = fetchPgcStream(epId, highestRequest, context)
 
-internal fun AbstractStreamData.filterDashTracks(
+fun AbstractStreamData.filterDashTracks(
     codec: CodecId,
     quality: QnQuality,
 ): DashTrack? {

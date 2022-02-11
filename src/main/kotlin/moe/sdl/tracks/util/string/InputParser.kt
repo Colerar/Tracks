@@ -1,8 +1,9 @@
-package moe.sdl.tracks.core
+package moe.sdl.tracks.util.string
 
 import io.ktor.client.features.RedirectResponseException
 import io.ktor.client.request.get
 import moe.sdl.tracks.config.client
+import moe.sdl.tracks.util.color
 
 private val pureNumberRegex by lazy { Regex("""^([aA][vV]\d+|[bB][vV]\w+|[eE][pP]\d+|[mM][dD]\d+|[sS]{2}\d+)$""") }
 private val shortLinkRegex by lazy { Regex("""^(https?://)?(www\.)?b23\.tv/(\w+)$""") }
@@ -18,10 +19,14 @@ suspend fun trimBiliNumber(input: String): String? {
     var s = input.filterNot { it.isWhitespace() }
     if (s.matches(pureNumberRegex)) return s
     if (shortLinkRegex.matches(s)) {
+        println("解析短链接 @|yellow,bold [$input]|@".color)
         try {
             client.client.config { followRedirects = false }.get<String>(s)
         } catch (e: RedirectResponseException) {
-            s = e.response.headers["Location"] ?: return null
+            s = e.response.headers["Location"] ?: run {
+                println("@|red 解析短链接失败~输入长链接或重试看看哦~|@".color)
+                return null
+            }
         }
     }
     listOf(bvAvUrlRegex, mdUrlRegex, epUrlRegex).forEach { regex ->

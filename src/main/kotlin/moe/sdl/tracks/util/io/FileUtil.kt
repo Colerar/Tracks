@@ -4,7 +4,6 @@ import java.io.File
 import java.net.URLDecoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import moe.sdl.tracks.config.TracksPreference
 import moe.sdl.tracks.util.Log
 
 /**
@@ -12,7 +11,7 @@ import moe.sdl.tracks.util.Log
  */
 @Suppress("SpellCheckingInspection")
 fun getJarLocation(): File {
-    var path: String = TracksPreference::class.java.protectionDomain.codeSource.location.path.also {
+    var path: String = Init::class.java.protectionDomain.codeSource.location.path.also {
         Log.debug { "Got raw jar path: $it" }
     }
     if (System.getProperty("os.name").lowercase().contains("dows")) {
@@ -27,7 +26,9 @@ fun getJarLocation(): File {
     }
 }
 
-internal suspend fun File.ensureCreate() = withContext(Dispatchers.IO) {
+private object Init
+
+suspend fun File.ensureCreate() = withContext(Dispatchers.IO) {
     if (!this@ensureCreate.exists()) {
         Log.debug { "Creating file at ${this@ensureCreate.absolutePath}" }
         this@ensureCreate.parentFile?.mkdirs()

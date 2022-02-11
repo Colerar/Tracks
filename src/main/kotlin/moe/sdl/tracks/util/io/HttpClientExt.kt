@@ -37,7 +37,7 @@ import okio.sink
 import okio.source
 
 @OptIn(ExperimentalContracts::class)
-internal suspend fun HttpClient.downloadFile(
+suspend fun HttpClient.downloadFile(
     url: String,
     dst: File,
     getBuilder: HttpRequestBuilder.() -> Unit = {},
@@ -102,7 +102,7 @@ private fun SideData(total: Long, part: Long, files: List<File>): SideData {
  * this func will be invoked. Func should return [Boolean] to control flow, `true` for *replace the origin file*;
  * `false` for return func.
  */
-internal suspend fun HttpClient.downloadResumable(
+suspend fun HttpClient.downloadResumable(
     url: String,
     dst: File,
     onDuplicate: () -> Boolean,

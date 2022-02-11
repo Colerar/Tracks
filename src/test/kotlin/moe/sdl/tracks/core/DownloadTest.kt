@@ -15,7 +15,6 @@ import moe.sdl.tracks.util.io.filterDashTracks
 import moe.sdl.yabapi.api.getVideoParts
 import moe.sdl.yabapi.data.stream.CodecId
 import moe.sdl.yabapi.data.stream.QnQuality
-import mu.KotlinLogging
 import org.junit.jupiter.api.Test
 
 class DownloadTest {

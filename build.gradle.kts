@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm") version "1.6.10"
     kotlin("plugin.serialization") version "1.5.31"
+    application
 }
 
 group = "moe.sdl.tracks"
@@ -13,6 +14,10 @@ repositories {
 
 configurations.all {
     resolutionStrategy.cacheChangingModulesFor(0, "minutes")
+}
+
+application {
+    mainClass.set("moe.sdl.tracks.TracksKt")
 }
 
 val ktorVersion = "1.6.7"
@@ -35,6 +40,9 @@ dependencies {
     implementation("moe.sdl.yabapi:yabapi-core-jvm:0.0.8-SNAPSHOT")
     // file system
     implementation("com.squareup.okio:okio:3.0.0")
+    // cli
+    implementation("com.github.ajalt.clikt:clikt:3.4.0")
+    implementation("org.fusesource.jansi:jansi:2.4.0")
 }
 
 tasks.test {
@@ -42,6 +50,6 @@ tasks.test {
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-    kotlinOptions.jvmTarget = "15"
+    kotlinOptions.jvmTarget = "1.8"
     kotlinOptions.freeCompilerArgs += "-opt-in=kotlin.RequiresOptIn"
 }

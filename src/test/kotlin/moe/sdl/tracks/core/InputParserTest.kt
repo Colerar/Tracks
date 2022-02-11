@@ -3,6 +3,7 @@ package moe.sdl.tracks.core
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 import kotlinx.coroutines.runBlocking
+import moe.sdl.tracks.util.string.trimBiliNumber
 import org.junit.jupiter.api.Test
 
 internal class InputParserTest {
