@@ -6,13 +6,14 @@ import com.github.ajalt.clikt.output.TermUi.echo
 import java.nio.channels.UnresolvedAddressException
 import moe.sdl.tracks.cmd.Dig
 import moe.sdl.tracks.cmd.LoginQR
+import moe.sdl.tracks.config.tracksPreference
 import moe.sdl.tracks.consts.tracksVersion
 import moe.sdl.tracks.util.Log
 import moe.sdl.tracks.util.color
 import org.fusesource.jansi.AnsiConsole
 
 fun main(args: Array<String>) {
-    AnsiConsole.systemInstall()
+    if (tracksPreference.enableColor) AnsiConsole.systemInstall()
     try {
         MainCommand()
             .subcommands(Dig(), LoginQR())

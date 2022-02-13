@@ -104,3 +104,4 @@ gradle-app.setting
 /tmp/
 /storage/
 /config/
+/.debug
