@@ -7,7 +7,7 @@ import org.fusesource.jansi.Ansi.ansi
 object Log {
     fun debug(throwable: Throwable? = null, lazyMessage: () -> String) {
         if (moe.sdl.tracks.config.debug) {
-            echo(lazyMessage())
+            echo("[DEBUG]" + lazyMessage())
             throwable?.let { echo(it) }
         }
     }
