@@ -101,6 +101,7 @@ private fun SideData(total: Long, part: Long, files: List<File>): SideData {
  * @param onDuplicate If [dst] are not file downloaded before, and exists, aka, name shadowed,
  * this func will be invoked. Func should return [Boolean] to control flow, `true` for *replace the origin file*;
  * `false` for return func.
+ * @param partCount part to separate, default 1, i.e., download whole one
  */
 suspend fun HttpClient.downloadResumable(
     url: String,

@@ -20,14 +20,20 @@ import moe.sdl.tracks.enums.QualityStrategy
 import moe.sdl.tracks.enums.videoQualityMap
 import moe.sdl.tracks.model.VideoResult
 import moe.sdl.tracks.model.printConsole
+import moe.sdl.tracks.model.toAnsi
 import moe.sdl.tracks.util.Log
 import moe.sdl.tracks.util.color
 import moe.sdl.tracks.util.errorExit
+import moe.sdl.tracks.util.infoExit
+import moe.sdl.tracks.util.io.fetchVideoDashTracks
 import moe.sdl.tracks.util.string.trimBiliNumber
 import moe.sdl.yabapi.api.getBangumiDetailedByEp
 import moe.sdl.yabapi.api.getBangumiDetailedBySeason
 import moe.sdl.yabapi.api.getBangumiInfo
 import moe.sdl.yabapi.api.getVideoInfo
+import moe.sdl.yabapi.data.GeneralCode
+import moe.sdl.yabapi.data.stream.DashTrack
+import moe.sdl.yabapi.data.stream.QnQuality
 import moe.sdl.yabapi.data.video.VideoInfoGetResponse
 import moe.sdl.yabapi.util.encoding.bv
 import org.fusesource.jansi.AnsiConsole
@@ -93,9 +99,22 @@ class MainCommand : CliktCommand(
         "-quality-near-down" to QualityStrategy.NEAR_DOWN,
     ).default(QualityStrategy.NEAR_UP)
 
-    private val videoQuality by option("-qv",
-        "-video-quality",
-        help = "视频质量, 支持 360P 到 8K, 可搭配 -quality-xxx 使用, 可用选项: [${videoQualityMap.keys.joinToString(",")}]")
+    private val _videoQuality by option(
+        "-qv", "-video-quality",
+        help = "视频质量, 支持 360P 到 8K, 可搭配 -quality-xxx 使用, 可用选项: [${videoQualityMap.keys.joinToString(",")}]"
+    ).convert {
+        videoQualityMap[it] ?: throw UsageError("""
+            解析失败, 未找到 '$it' 对应的画质, 请检查后重试
+            可用选项: [${videoQualityMap.keys.joinToString(",")}]
+        """.trimIndent())
+    }
+
+    private val videoQuality by lazy {
+        _videoQuality ?: run {
+            echo("@|yellow 未指定分辨率, 默认选择最高画质|@".color)
+            QnQuality.V8K
+        }
+    }
 
     private val showAllParts by option("-pd",
         "-part-detail",
@@ -134,13 +153,13 @@ class MainCommand : CliktCommand(
             trimmed.startsWith("bv", ignoreCase = true) -> client.getVideoInfo(trimmed)
             trimmed.startsWith("ss", ignoreCase = true) ->
                 client.getBangumiDetailedBySeason(seasonId = trimmed.lowercase().removePrefix("ss").toIntOrNull()
-                        ?: errorExit { "ss 号输入有误！请检查后重试" })
+                    ?: errorExit { "ss 号输入有误！请检查后重试" })
             trimmed.startsWith("md", ignoreCase = true) ->
                 client.getBangumiInfo(mediaId = trimmed.lowercase().removePrefix("md").toIntOrNull()
-                        ?: errorExit { "md 号输入有误！请检查后重试" })
+                    ?: errorExit { "md 号输入有误！请检查后重试" })
             trimmed.startsWith("ep", ignoreCase = true) ->
                 client.getBangumiDetailedByEp(epId = trimmed.lowercase().removePrefix("ep").toIntOrNull()
-                        ?: errorExit { "ep 号输入有误！请检查后重试" })
+                    ?: errorExit { "ep 号输入有误！请检查后重试" })
             else -> errorExit { "解析链接失败！请检查后重试" }
         }
         when (info) {
@@ -149,15 +168,17 @@ class MainCommand : CliktCommand(
         }
     }
 
-    private fun processVideo(info: VideoInfoGetResponse) {
-        val targets = targetParts ?: run {
-            echo("@|yellow 未选择分 P 默认下载 P1|@".color)
-            listOf(1)
+    private suspend fun processVideo(info: VideoInfoGetResponse) {
+        val targets by lazy {
+            targetParts ?: run {
+                echo("@|yellow 未选择分 P 默认选择 P1|@".color)
+                listOf(1)
+            }
         }
         val model = VideoResult(info)
         echo(model.toAnsi())
         echo()
-        var parts = info.data?.parts ?: errorExit(withHelp = false) { "获取分 P 失败，可能是网络波动，请稍后再试。" }
+        var parts = info.data?.parts ?: errorExit(withHelp = false) { "获取分 P 失败, 可能是网络波动, 请稍后再试。" }
         parts.printConsole(showAllParts)
         echo()
 
@@ -167,11 +188,41 @@ class MainCommand : CliktCommand(
                 targets.contains(it.part)
             }
         }
-        echo("@|bold 已选择: ${parts.map { it.part }.joinToString()}|@".color)
-//                val queryJob =
-//                    parts.fold(mutableListOf<VideoStreamResponse>()) { acc, part ->
-//                        if (part.cid != null) acc.add(client.fetchVideoStream(trimmed, part.cid!!))
-//                        acc
-//                    }
+        echo("@|bold 已选择: ${parts.joinToString { it.part.toString() }}|@".color)
+        parts.forEach { part ->
+            echo("@|bold 正在下载: |@".color.toString() + part.toAnsi().toString())
+            val response = client.fetchVideoDashTracks(
+                aid = info.data?.aid ?: errorExit { "获取 aid 失败, 可能是网络错误, 稍后重试看看" },
+                cid = part.cid ?: errorExit { "cid 获取失败, 稍后重试看看" }
+            )
+            if (response.code != GeneralCode.SUCCESS) errorExit { "获取视频流失败 ${response.data} - ${response.message}" }
+            val data = response.data ?: errorExit { "获取视频流 [response.data] 失败, 稍后重试看看" }
+            if (data.dash?.videos == null) errorExit { "获取 Dash 视频流 [data.dash.videos] 失败, 稍后重试看看" }
+            echo("当前视频可用画质: [${data.acceptDescription.joinToString()}]")
+            val videos =
+                data.dash!!.videos.asSequence()
+                    .filter { it.id != null }
+            val videoTrack: DashTrack = when (qualityStrategy) {
+                QualityStrategy.EXACT -> videos.firstOrNull { it.id == videoQuality }
+                QualityStrategy.NEAR_UP -> {
+                    videos
+                        .filter { it.id!! >= videoQuality }
+                        .minByOrNull { it.id!! }
+                        ?: videos.maxByOrNull { it.id!! }
+                }
+                QualityStrategy.NEAR_DOWN -> {
+                    videos
+                        .filter { it.id!! <= videoQuality }
+                        .maxByOrNull { it.id!! }
+                        ?: videos.maxByOrNull { it.id!! }
+                }
+            } ?: run {
+                if (videoQuality in data.acceptQuality) infoExit { "@|red,bold 匹配画质 [$videoQuality] 需要大会员, 停止下载|@".color }
+                infoExit { "@|red 无匹配画质 [$videoQuality], 停止下载|@".color }
+            }
+            if (videoQuality in data.acceptQuality && videoTrack.id!! != videoQuality)
+                echo("@|yellow 匹配画质 [$videoQuality] 需要大会员, 回退为 [${videoTrack.id}]|@".color)
+            echo("下载画质: ${videoTrack.id}...")
+        }
     }
 }

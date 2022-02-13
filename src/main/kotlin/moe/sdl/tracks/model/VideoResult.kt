@@ -23,7 +23,7 @@ internal data class VideoResult(
 //    val parts: List<VideoPartModel> = emptyList(),
 ) {
     fun toAnsi() = """
-            @|cyan,bold =================== 当前下载 ===================|@
+            @|cyan,bold =================== 视频信息 ===================|@
             @|bold $title|@
             @|bold | 日　期 $date |@
             @|bold | ＵＰ主 $authorName|@
