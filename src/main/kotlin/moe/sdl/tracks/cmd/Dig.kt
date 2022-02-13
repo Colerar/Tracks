@@ -37,10 +37,10 @@ import moe.sdl.yabapi.data.video.VideoInfoGetResponse
 import moe.sdl.yabapi.util.encoding.bv
 
 class Dig : CliktCommand(name = "dig", help = """
-    下载命令, 该命令可以直接使用 主命令调用 tracks dig -> tracks
+    下载命令
     
     url - 输入 B 站视频 链接|短链接|号码
-    """.trimIndent(), invokeWithoutSubcommand = true, printHelpOnEmptyArgs = true
+    """.trimIndent(), printHelpOnEmptyArgs = true
 ) {
 
     private val url by argument("url", "B 站视频地址或 av BV ss ep md 等号码")

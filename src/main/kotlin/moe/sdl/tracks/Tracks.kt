@@ -30,7 +30,6 @@ class MainCommand : CliktCommand(
     """
        Kotlin 编写的哔哩哔哩下载 Cli ${"@|yellow,bold $tracksVersion|@\n".color}
     """.trimIndent(),
-    invokeWithoutSubcommand = true,
     printHelpOnEmptyArgs = true,
 ) {
     override fun run() = Unit
