@@ -21,6 +21,7 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import moe.sdl.tracks.config.client
+import moe.sdl.tracks.config.tracksPreference
 import moe.sdl.tracks.enums.DownloadType
 import moe.sdl.tracks.enums.QualityStrategy
 import moe.sdl.tracks.enums.videoQualityMap
@@ -28,13 +29,16 @@ import moe.sdl.tracks.model.VideoResult
 import moe.sdl.tracks.model.printConsole
 import moe.sdl.tracks.model.toAnsi
 import moe.sdl.tracks.util.Log
+import moe.sdl.tracks.util.basicContext
 import moe.sdl.tracks.util.color
 import moe.sdl.tracks.util.errorExit
 import moe.sdl.tracks.util.infoExit
 import moe.sdl.tracks.util.io.configureForBili
+import moe.sdl.tracks.util.io.downloadFile
 import moe.sdl.tracks.util.io.downloadResumable
 import moe.sdl.tracks.util.io.fetchVideoDashTracks
 import moe.sdl.tracks.util.io.getRemoteFileSize
+import moe.sdl.tracks.util.placeHolderContext
 import moe.sdl.tracks.util.string.Size
 import moe.sdl.tracks.util.string.progressBar
 import moe.sdl.tracks.util.string.toStringOrDefault
@@ -49,9 +53,12 @@ import moe.sdl.yabapi.data.stream.DashTrack
 import moe.sdl.yabapi.data.stream.QnQuality
 import moe.sdl.yabapi.data.stream.VideoStreamData
 import moe.sdl.yabapi.data.video.VideoInfoGetResponse
+import moe.sdl.yabapi.enums.ImageFormat
 import moe.sdl.yabapi.util.encoding.bv
+import moe.sdl.yabapi.util.string.buildImageUrl
 
-class Dig : CliktCommand(name = "dig", help = """
+class Dig : CliktCommand(
+    name = "dig", help = """
     下载命令
     
     url - 输入 B 站视频 链接|短链接|号码
@@ -113,10 +120,12 @@ class Dig : CliktCommand(name = "dig", help = """
         "-qv", "-video-quality",
         help = "视频质量, 支持 360P 到 8K, 可搭配 -quality-xxx 使用, 可用选项: [${videoQualityMap.keys.joinToString(",")}]"
     ).convert {
-        videoQualityMap[it] ?: throw UsageError("""
+        videoQualityMap[it] ?: throw UsageError(
+            """
             解析失败, 未找到 '$it' 对应的画质, 请检查后重试
             可用选项: [${videoQualityMap.keys.joinToString(",")}]
-        """.trimIndent())
+        """.trimIndent()
+        )
     }
 
     private val videoQuality by lazy {
@@ -130,10 +139,12 @@ class Dig : CliktCommand(name = "dig", help = """
         listOf("avc", "hevc", "av1", "h264", "h265", "h.264", "h.265").joinToString(",")
     }
 
-    private val videoCodec by option("-videocodec",
+    private val videoCodec by option(
+        "-videocodec",
         "-codec",
         "-cv",
-        help = "视频编码优先级, 默认 [avc, hevc, av1], 可用 [$availableVideoCodec]")
+        help = "视频编码优先级, 默认 [avc, hevc, av1], 可用 [$availableVideoCodec]"
+    )
         .convert { str ->
             str.split(Regex("[,，]"))
                 .filterNot { it.isEmpty() || it.isBlank() }
@@ -149,21 +160,25 @@ class Dig : CliktCommand(name = "dig", help = """
                 }
         }.default(listOf(CodecId.AVC, CodecId.HEVC, CodecId.AV1))
 
-    private val showAllParts by option("-pd",
+    private val showAllParts by option(
+        "-pd",
         "-part-detail",
         "-show-all-parts",
-        help = "显示所有分P, 默认关闭").flag(default = false)
+        help = "显示所有分P, 默认关闭"
+    ).flag(default = false)
 
     private val targetParts by option("-p", "-part", "-parts", help = "视频分 P, 支持范围选择, 形如 '3-5', '0' 表示全部")
         .convert { opt ->
             val partSyntaxErr by lazy {
-                UsageError("""
+                UsageError(
+                    """
                         分 P 解析失败! 请检查语法:
                         1. 至少指定一个分 P
                         2. 可以单独指定一个分 P 如 '12', 也可指定分 P 范围 如 '1-4' '12-5'
                         3. 多个块可使用 ',' (全|半角皆可) 连接 如 '1-12,14-17', 逗号可尾随 如 '1,2,3,'
                         4. '0' 表示全部
-                        """.trimIndent(), this, context)
+                        """.trimIndent(), this, context
+                )
             }
             if (!Regex("""(\d+(-\d+)?[,，]?)+""").matches(opt))
                 throw partSyntaxErr
@@ -203,10 +218,7 @@ class Dig : CliktCommand(name = "dig", help = """
 
     private suspend fun processVideo(info: VideoInfoGetResponse, scope: CoroutineScope) {
         val targets by lazy {
-            targetParts ?: run {
-                echo("@|yellow 未选择分 P 默认选择 P1|@".color)
-                listOf(1)
-            }
+            targetParts ?: listOf(1)
         }
         val model = VideoResult(info)
         echo(model.toAnsi())
@@ -221,10 +233,31 @@ class Dig : CliktCommand(name = "dig", help = """
                 targets.contains(it.part)
             }
         }
+        echo("已选择: @|bold ${parts.joinToString { it.part.toString() }}|@".color)
 
-        echo("@|bold 已选择: ${parts.joinToString { it.part.toString() }}|@".color)
+        if (downloads.contains(DownloadType.COVER)) {
+            run {
+                echo("@|magenta ==>|@ @|bold 下载封面...|@".color)
+                val dst = with(basicContext + info.data!!.placeHolderContext) {
+                    tracksPreference.fileDir.coverName.decodePlaceholder()
+                }.let { File("./$it") }.also {
+                    if (it.exists()) {
+                        echo("@|yellow 封面已存在, 跳过下载|@".color)
+                        return@run
+                    }
+                }
+                client.client.downloadFile(
+                    url = buildImageUrl(info.data!!.cover, ImageFormat.PNG),
+                    dst = dst,
+                    getBuilder = { configureForBili() }
+                )
+                echo("@|yellow 封面下载成功!|@ 文件: ${dst.toPath().normalize().toFile().absolutePath}".color)
+                echo()
+            }
+        }
+
         parts.forEach { part ->
-            echo("@|bold 正在下载: |@".color.toString() + part.toAnsi().toString())
+            echo("@|bold 下载分 P: |@".color.toString() + part.toAnsi().toString())
             val response = client.fetchVideoDashTracks(
                 aid = info.data?.aid ?: errorExit { "获取 aid 失败, 可能是网络错误, 稍后重试看看" },
                 cid = part.cid ?: errorExit { "cid 获取失败, 稍后重试看看" }
@@ -241,16 +274,21 @@ class Dig : CliktCommand(name = "dig", help = """
                 val bitrate = size.toStringOrDefault {
                     it.toBandwidth(part.duration ?: return@toStringOrDefault "--").toShow()
                 }
-                echo("""
+                echo(
+                    """
                     @|magenta ==>|@ @|bold 视频流信息: 
                      -> 画质 ${tr.id} | 编码 ${tr.codec} | 帧率 ${tr.frameRate} F
-                     -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color)
+                     -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color
+                )
+                val videoDst =
+                    with(basicContext + part.placeHolderContext + info.data!!.placeHolderContext + tr.placeHolderContext) {
+                        tracksPreference.fileDir.videoName.decodePlaceholder()
+                    }.let { File("./$it") }
                 val cur = atomic(0L)
-                val dst = File("./${info.data!!.aid}.m4s")
                 val downJob = scope.launch {
                     client.client.downloadStream(
                         url = url,
-                        dst = dst,
+                        dst = videoDst,
                         partCount = 1,
                         scope = scope,
                         key = setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString())
@@ -258,7 +296,7 @@ class Dig : CliktCommand(name = "dig", help = """
                 }
                 val countJob = scope.launch {
                     while (isActive) {
-                        if (dst.exists()) cur.getAndSet(dst.length())
+                        if (videoDst.exists()) cur.getAndSet(videoDst.length())
                         delay(100)
                     }
                 }
@@ -269,14 +307,14 @@ class Dig : CliktCommand(name = "dig", help = """
                 printJob.cancelAndJoin()
                 countJob.cancelAndJoin()
                 println()
-                echo("下载完成! 文件路径: ${dst.toPath().normalize().toFile().absolutePath}")
+                echo("下载完成! 文件路径: ${videoDst.toPath().normalize().toFile().absolutePath}")
             }
         }
     }
 
     private fun filterVideo(data: VideoStreamData): DashTrack {
         if (data.dash?.videos == null) errorExit { "获取 Dash 视频流 [data.dash.videos] 失败, 稍后重试看看" }
-        echo("当前视频可用画质: [${data.acceptDescription.joinToString()}]")
+        Log.debug { "当前视频可用画质: [${data.acceptDescription.joinToString()}]" }
         val videos = data.dash!!.videos.asSequence()
 
         // quality filter

@@ -24,6 +24,7 @@ fun CoroutineScope.progressBar(
         repeat(min(downloadLen, length)) {
             str += mark
         }
+        str += " "
         repeat(max(length - downloadLen, 0)) {
             str += " "
         }

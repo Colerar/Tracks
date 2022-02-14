@@ -5,6 +5,7 @@ import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.isDistantFuture
 import kotlinx.datetime.toLocalDateTime
@@ -88,9 +89,12 @@ internal fun Long.toAbsTime(
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): String {
     val ldt = Instant.fromEpochSeconds(this).toLocalDateTime(timeZone)
-    return ldt.year.toString() + "-" + ldt.monthNumber.padZero() + "-" + ldt.dayOfMonth.padZero() + " " +
-            ldt.hour.padZero() + ":" + ldt.minute.padZero() + ":" + ldt.second.padZero()
+    return ldt.toAbsTime()
 }
+
+fun LocalDateTime.toAbsTime() =
+    year.toString() + "-" + monthNumber.padZero() + "-" + dayOfMonth.padZero() + " " +
+            hour.padZero() + ":" + minute.padZero() + ":" + second.padZero()
 
 private const val BANDWIDTH_SCALE: Double = 1000.0
 
