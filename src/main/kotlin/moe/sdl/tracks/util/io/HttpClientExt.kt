@@ -60,6 +60,7 @@ suspend fun HttpClient.downloadFile(
 private data class SideData(
     val total: Long,
     val parts: MutableList<Part>,
+    val key: Set<String> = emptySet(),
 )
 
 @Serializable
@@ -80,7 +81,7 @@ private object FileSerializer : KSerializer<File> {
     override fun deserialize(decoder: Decoder): File = File(decoder.decodeString())
 }
 
-private fun SideData(total: Long, part: Long, files: List<File>): SideData {
+private fun SideData(total: Long, part: Long, files: List<File>, key: Set<String> = emptySet()): SideData {
     val partSize = (total / part)
     val ranges = (0..total).step(partSize).windowed(2).toMutableList()
     ranges[ranges.size - 1] = ranges.last().toMutableList().apply { set(1, total) }
@@ -94,8 +95,13 @@ private fun SideData(total: Long, part: Long, files: List<File>): SideData {
             file,
             false,
         )
-    }.toMutableList())
+    }.toMutableList(), key)
 }
+
+suspend fun HttpClient.getRemoteFileSize(url: String, headBuilder: HttpRequestBuilder.() -> Unit = {}): Long =
+    head<HttpStatement>(url, headBuilder).execute {
+        it.headers[HttpHeaders.ContentLength]?.toLong() ?: error("Failed to get total length for $url")
+    }
 
 /**
  * @param onDuplicate If [dst] are not file downloaded before, and exists, aka, name shadowed,
@@ -112,6 +118,7 @@ suspend fun HttpClient.downloadResumable(
     getBuilder: HttpRequestBuilder.() -> Unit = {},
     partCount: Long = 1,
     coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO + CoroutineName("Tracks-Download")),
+    key: Set<String> = emptySet(),
 ) {
     val sideFile = File(dst.parent, ".${dst.nameWithoutExtension}.tracksdown")
     var sideData: SideData? by Delegates.observable(null) { _, _, new ->
@@ -119,23 +126,8 @@ suspend fun HttpClient.downloadResumable(
         Log.debug { "SideData updated: $new" }
     }
 
-    // [dst] exists but side file not, may be duplicated
-    if (!dst.exists() && sideFile.exists()) {
-        if (onDuplicate()) {
-            Log.debug { "Stopping download, due to file name shadowed." }
-            return
-        }
-        dst.apply {
-            delete()
-            ensureCreate()
-        }
-    }
-
-    // INIT: Both are not exist, create new file and side file.
-    if (!dst.exists() && !sideFile.exists()) {
-        val total: Long = head<HttpStatement>(url, headBuilder).execute {
-            it.headers[HttpHeaders.ContentLength]?.toLong() ?: error("Failed to get total length for $url")
-        }
+    suspend fun initFile()  {
+        val total: Long = getRemoteFileSize(url, headBuilder)
         val files = buildList {
             if (partCount == 1L) this.add(dst)
             for (i in 1L..partCount) {
@@ -144,11 +136,29 @@ suspend fun HttpClient.downloadResumable(
         }
         dst.ensureCreate()
         sideFile.ensureCreate()
-        sideData = SideData(total, partCount, files)
+        sideData = SideData(total, partCount, files, key)
     }
 
+    // [dst] exists but side file not, may be duplicated
+    if (dst.exists() && !sideFile.exists()) {
+        if (!onDuplicate()) {
+            Log.debug { "Stopping download, due to file name shadowed." }
+            return
+        } else initFile()
+        dst.apply {
+            delete()
+            ensureCreate()
+        }
+    }
+
+    // INIT: Both are not exist, create new file and side file.
+    if (!dst.exists() && !sideFile.exists()) initFile()
+
     // LOAD: if side file exists, load it
-    if (sideFile.exists()) sideData = protoBuf.decodeFromByteArray(sideFile.readBytes())
+    if (sideFile.exists()) {
+        sideData = protoBuf.decodeFromByteArray(sideFile.readBytes())
+        if ((sideData?.key ?: emptyList()) != key) onDuplicate()
+    }
 
     requireNotNull(sideData) { "Failed to load sideData, find null" }
 
@@ -170,14 +180,16 @@ suspend fun HttpClient.downloadResumable(
             Log.debug { "Part ${part.file.absolutePath}, finished download" }
         }
     }.orEmpty().awaitAll()
-    dst.sink().use { sink ->
-        val bufferedSink = sink.buffer()
-        sideData?.parts?.map { it.file }.orEmpty().forEach {
-            it.source().use { source ->
-                bufferedSink.writeAll(source.buffer())
+    if (partCount != 1L) {
+        dst.sink().use { sink ->
+            val bufferedSink = sink.buffer()
+            sideData?.parts?.map { it.file }.orEmpty().forEach {
+                it.source().use { source ->
+                    bufferedSink.writeAll(source.buffer())
+                }
+                it.delete()
             }
-            it.delete()
         }
-        sideFile.delete()
     }
+    sideFile.delete()
 }

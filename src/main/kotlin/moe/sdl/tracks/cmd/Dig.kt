@@ -8,8 +8,11 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.switch
+import io.ktor.client.HttpClient
+import java.io.File
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.runBlocking
 import moe.sdl.tracks.config.client
 import moe.sdl.tracks.enums.DownloadType
@@ -22,7 +25,12 @@ import moe.sdl.tracks.util.Log
 import moe.sdl.tracks.util.color
 import moe.sdl.tracks.util.errorExit
 import moe.sdl.tracks.util.infoExit
+import moe.sdl.tracks.util.io.configureForBili
+import moe.sdl.tracks.util.io.downloadResumable
 import moe.sdl.tracks.util.io.fetchVideoDashTracks
+import moe.sdl.tracks.util.io.getRemoteFileSize
+import moe.sdl.tracks.util.string.Size
+import moe.sdl.tracks.util.string.toStringOrDefault
 import moe.sdl.tracks.util.string.trimBiliNumber
 import moe.sdl.yabapi.api.getBangumiDetailedByEp
 import moe.sdl.yabapi.api.getBangumiDetailedBySeason
@@ -181,12 +189,12 @@ class Dig : CliktCommand(name = "dig", help = """
             else -> errorExit { "解析链接失败！请检查后重试" }
         }
         when (info) {
-            is VideoInfoGetResponse -> processVideo(info)
+            is VideoInfoGetResponse -> processVideo(info, this)
             else -> errorExit { "暂不支持番剧解析！" }
         }
     }
 
-    private suspend fun processVideo(info: VideoInfoGetResponse) {
+    private suspend fun processVideo(info: VideoInfoGetResponse, scope: CoroutineScope) {
         val targets by lazy {
             targetParts ?: run {
                 echo("@|yellow 未选择分 P 默认选择 P1|@".color)
@@ -217,8 +225,26 @@ class Dig : CliktCommand(name = "dig", help = """
             if (response.code != GeneralCode.SUCCESS) errorExit { "取流失败 ${response.code} - ${response.message}" }
             val data = response.data ?: errorExit { "取流 [response.data] 失败, 稍后重试看看" }
 
+            // Filter and download video
             if (DownloadType.VIDEO in downloads) {
-                filterVideo(data)
+                val tr = filterVideo(data)
+                val url = tr.baseUrl ?: errorExit { "获取视频链接失败..." }
+                val size = client.client.getRemoteFileSize(url) { configureForBili() }
+                    .let { Size(it) }
+                val bitrate = size.toStringOrDefault {
+                    it.toBandwidth(part.duration ?: return@toStringOrDefault "--").toShow()
+                }
+                echo("""
+                    @|bold 视频流信息: 
+                    -> 画质 ${tr.id} | 编码 ${tr.codec} | 帧率 ${tr.frameRate} F
+                    -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color)
+                client.client.downloadStream(
+                    url = url,
+                    dst = File("./${info.data!!.aid}.m4s"),
+                    partCount = 1,
+                    scope = scope,
+                    key = setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString())
+                )
             }
         }
     }
@@ -226,41 +252,63 @@ class Dig : CliktCommand(name = "dig", help = """
     private fun filterVideo(data: VideoStreamData): DashTrack {
         if (data.dash?.videos == null) errorExit { "获取 Dash 视频流 [data.dash.videos] 失败, 稍后重试看看" }
         echo("当前视频可用画质: [${data.acceptDescription.joinToString()}]")
-        var videos =
-            data.dash!!.videos.asSequence().filter { it.id != null }
+        val videos = data.dash!!.videos.asSequence()
 
-        var hasMatchedTrack = false
-
-        videoCodec.forEach { codec ->
-            val filtered = videos.filter { it.codec == codec }
-            if (filtered.count() == 0) return@forEach
-            hasMatchedTrack = true
-            videos = filtered
-        }
-
-        if (!hasMatchedTrack) infoExit { "无视频编码为 ${videoCodec.joinToString(" | ")} 的视频流, 停止下载" }
-
-        val videoTrack: DashTrack = when (qualityStrategy) {
-            QualityStrategy.EXACT -> videos.firstOrNull { it.id == videoQuality }
-            QualityStrategy.NEAR_UP -> {
-                videos
-                    .filter { it.id!! >= videoQuality }
-                    .minByOrNull { it.id!! }
-                    ?: videos.maxByOrNull { it.id!! }
+        // quality filter
+        val qualityList = videos.mapNotNull { it.id }
+        val filtered = qualityList.filter {
+            when (qualityStrategy) {
+                QualityStrategy.EXACT -> it == videoQuality
+                QualityStrategy.NEAR_UP -> it >= videoQuality
+                QualityStrategy.NEAR_DOWN -> it <= videoQuality
             }
-            QualityStrategy.NEAR_DOWN -> {
-                videos
-                    .filter { it.id!! <= videoQuality }
-                    .maxByOrNull { it.id!! }
-                    ?: videos.maxByOrNull { it.id!! }
+        }.let {
+            when (qualityStrategy) {
+                QualityStrategy.EXACT -> it.firstOrNull()
+                QualityStrategy.NEAR_UP -> it.minOrNull() ?: qualityList.maxOrNull()
+                QualityStrategy.NEAR_DOWN -> it.maxOrNull() ?: qualityList.maxOrNull()
             }
         } ?: run {
             if (videoQuality in data.acceptQuality) infoExit { "@|red,bold 匹配画质 [$videoQuality] 需要大会员, 停止下载|@".color }
             infoExit { "@|red 无匹配画质 [$videoQuality], 停止下载|@".color }
         }
-        if (videoQuality in data.acceptQuality && videoTrack.id!! != videoQuality)
-            echo("@|yellow 匹配画质 [$videoQuality] 需要大会员, 回退为 [${videoTrack.id}]|@".color)
-        echo("下载画质: ${videoTrack.id}...")
-        return videoTrack
+        if (videoQuality in data.acceptQuality && filtered != videoQuality)
+            echo("@|yellow 匹配画质 [$videoQuality] 需要大会员, 回退为 [$filtered]|@".color)
+
+        // codec filter
+        val track = videos.filter { it.id == filtered }.firstOrNull {
+            videoCodec.forEach { target ->
+                if (it.codec == target) return@firstOrNull true
+            }
+            false
+        } ?: infoExit { "无视频编码为 ${videoCodec.joinToString(" | ")} 的视频流, 停止下载" }
+
+        return track
+    }
+
+    private suspend fun HttpClient.downloadStream(url: String, dst: File, partCount: Long, scope: CoroutineScope, key: Set<String>) {
+        downloadResumable(
+            url,
+            dst,
+            onDuplicate = {
+                (prompt(text = "目标文件已经存在, 要覆盖吗? (y|n)", default = "n") { str ->
+                    when {
+                        str.matches(Regex("""y(es)?""", RegexOption.IGNORE_CASE)) -> true
+                        else -> false
+                    }
+                } ?: false).also {
+                    echo("选择了 @|yellow,bold ${if (it) "覆盖" else "不覆盖"}|@".color)
+                    if (it && dst.exists()) {
+                        Log.debug { "Deleting file at ${dst.absolutePath}" }
+                        dst.delete()
+                    }
+                }
+            },
+            headBuilder = { configureForBili() },
+            getBuilder = { configureForBili() },
+            partCount = partCount,
+            coroutineScope = scope,
+            key = key
+        )
     }
 }

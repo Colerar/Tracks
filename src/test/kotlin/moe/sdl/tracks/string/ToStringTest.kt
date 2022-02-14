@@ -2,6 +2,7 @@ package moe.sdl.tracks.string
 
 import kotlin.test.assertEquals
 import kotlinx.datetime.Clock
+import moe.sdl.tracks.util.string.Bandwidth
 import moe.sdl.tracks.util.string.secondsToDuration
 import moe.sdl.tracks.util.string.toRelativeTime
 import moe.sdl.tracks.util.string.toStringOrDefault
@@ -56,6 +57,16 @@ internal class ToStringTest {
             now - it
         }.forEach {
             it.toRelativeTime().also(::println)
+        }
+    }
+
+    @Test
+    fun bandwidthToString() {
+        generateSequence(1L) {
+            it * 2L
+        }.take(40).forEach {
+            Bandwidth(it).toShow().also(::println)
+            Bandwidth(it).toBytes().toShow().also(::println)
         }
     }
 }

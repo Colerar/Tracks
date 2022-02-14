@@ -1,6 +1,10 @@
 package moe.sdl.tracks.util.io
 
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.headers
+import io.ktor.http.HttpHeaders
 import kotlin.coroutines.CoroutineContext
+import moe.sdl.tracks.consts.BILI_WWW
 import moe.sdl.tracks.util.Log
 import moe.sdl.yabapi.BiliClient
 import moe.sdl.yabapi.api.fetchPgcStream
@@ -52,4 +56,10 @@ fun AbstractStreamData.filterDashTracks(
     return dash.videos.asSequence()
         .filter { it.codec == codec }
         .firstOrNull { it.id == quality }
+}
+
+fun HttpRequestBuilder.configureForBili() {
+    headers {
+        append(HttpHeaders.Referrer, BILI_WWW)
+    }
 }
