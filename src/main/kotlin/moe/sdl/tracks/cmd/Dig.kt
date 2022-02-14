@@ -15,6 +15,7 @@ import kotlin.math.min
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -26,6 +27,7 @@ import moe.sdl.tracks.config.client
 import moe.sdl.tracks.config.tracksPreference
 import moe.sdl.tracks.enums.DownloadType
 import moe.sdl.tracks.enums.QualityStrategy
+import moe.sdl.tracks.enums.audioQualityMap
 import moe.sdl.tracks.enums.videoQualityMap
 import moe.sdl.tracks.model.VideoResult
 import moe.sdl.tracks.model.printConsole
@@ -162,6 +164,25 @@ class Dig : CliktCommand(
                 }
         }.default(listOf(CodecId.AVC, CodecId.HEVC, CodecId.AV1))
 
+    private val _audioQuality by option(
+        "-qa", "-audio-quality",
+        help = "音频质量, 支持 64kbps - 320kbps 以及 dolby e-ac-3, 可搭配 -quality-xxx使用, 可用选项: ${audioQualityMap.keys.joinToString()}"
+    ).convert {
+        audioQualityMap[it] ?: throw UsageError(
+            """
+            解析失败, 未找到 '$it' 对应的音质, 请检查后重试,
+            可用选项 ${audioQualityMap.keys.joinToString()}
+            """.trimIndent()
+        )
+    }
+
+    private val audioQuality by lazy {
+        _audioQuality ?: run {
+            echo("@|yellow 未指定音质, 默认选择可下载的最高音质|@".color)
+            QnQuality.AUDIO_DOLBY
+        }
+    }
+
     private val showAllParts by option(
         "-pd",
         "-part-detail",
@@ -268,77 +289,84 @@ class Dig : CliktCommand(
             val data = response.data ?: errorExit { "取流 [response.data] 失败, 稍后重试看看" }
 
             // Filter and download video
-            if (DownloadType.VIDEO in downloads) {
-                val tr = filterVideo(data)
-                val url = tr.baseUrl ?: errorExit { "获取视频链接失败..." }
-                val size = client.client.getRemoteFileSize(url) { configureForBili() }
-                    .let { Size(it) }
-                val bitrate = size.toStringOrDefault {
-                    it.toBandwidth(part.duration ?: return@toStringOrDefault "--").toShow()
-                }
-                echo(
-                    """
-                    @|magenta ==>|@ @|bold 视频流信息: 
-                     -> 画质 ${tr.id} | 编码 ${tr.codec} | 帧率 ${tr.frameRate} F
-                     -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color
-                )
-                val videoDst =
-                    with(basicContext + part.placeHolderContext + info.data!!.placeHolderContext + tr.placeHolderContext) {
-                        tracksPreference.fileDir.videoName.decodePlaceholder()
-                    }.let { File("./$it") }
-                val cur = atomic(0L)
+            val videoPlaceholderContext by lazy { basicContext + part.placeHolderContext + info.data!!.placeHolderContext }
+            run video@{
+                if (DownloadType.VIDEO in downloads) {
+                    val tr = filterVideo(data) ?: run {
+                        echo("@|red 未发现视频流, 跳过视频下载 |@".color)
+                        return@video
+                    }
+                    val url = tr.baseUrl ?: errorExit { "获取视频链接失败..." }
+                    val size = client.client.getRemoteFileSize(url) { configureForBili() }
+                        .let { Size(it) }
+                    val bitrate = size.toStringOrDefault {
+                        it.toBandwidth(part.duration ?: return@toStringOrDefault "--").toShow()
+                    }
+                    echo(
+                        """
+                        @|magenta ==>|@ @|bold 视频流信息: 
+                         -> 画质 ${tr.id} | 编码 ${tr.codec} | 帧率 ${tr.frameRate} F
+                         -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color
+                    )
+                    val videoDst =
+                        with(videoPlaceholderContext + tr.placeHolderContext) {
+                            tracksPreference.fileDir.videoName.decodePlaceholder()
+                        }.let { File("./$it") }
 
-                val downJob = client.client.downloadStream(
-                    url = url,
-                    dst = videoDst,
-                    partCount = 1,
-                    scope = scope,
-                    key = setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString())
-                )
-                val countJob = scope.launch {
-                    while (isActive) {
-                        if (videoDst.exists()) cur.getAndSet(videoDst.length())
-                        delay(100)
+                    downloadStreamAndShow(videoDst, size, scope) {
+                        client.client.downloadStream(
+                            url, videoDst, partCount = 1, scope = scope,
+                            setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString(), size.bytes.toString()),
+                        )
                     }
+                    println()
                 }
-                val printJob = scope.progressBar(cur, size.bytes)
-                downJob.invokeOnCompletion {
-                    if (it is CancellationException) {
-                        downJob.cancel()
-                        countJob.cancel()
+            }
+
+            run audio@{
+                // Filter and download audio
+                if (DownloadType.AUDIO in downloads) {
+                    val tr = filterAudio(data) ?: run {
+                        echo("@|red 未发现音频流, 跳过音频下载 |@".color)
+                        return@audio
                     }
-                    if (it == null) {
-                        println()
-                        echo("下载完成! 文件路径: ${videoDst.toPath().normalize().toFile().absolutePath}")
+                    val url = tr.baseUrl ?: errorExit { "获取音频链接失败" }
+                    val size = client.client.getRemoteFileSize(url) { configureForBili() }
+                        .let { Size(it) }
+                    val bitrate = size.toStringOrDefault {
+                        it.toBandwidth(part.duration ?: return@toStringOrDefault "--").toShow()
                     }
+                    echo(
+                        """
+                        @|magenta ==>|@ @|bold 音频流信息: 
+                         -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color
+                    )
+                    val placeholderContext = videoPlaceholderContext + tr.placeHolderContext
+                    val audioDst =
+                        with(placeholderContext) {
+                            tracksPreference.fileDir.audioName.decodePlaceholder()
+                        }.let { File("./$it") }
+
+                    downloadStreamAndShow(audioDst, size, scope) {
+                        client.client.downloadStream(
+                            url, audioDst, partCount = 1, scope = scope,
+                            setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString(), size.bytes.toString()),
+                        )
+                    }
+                    println()
                 }
-                joinAll(downJob)
-                printJob.cancelAndJoin()
-                countJob.cancelAndJoin()
             }
         }
     }
 
-    private fun filterVideo(data: VideoStreamData): DashTrack {
+    private fun filterVideo(data: VideoStreamData): DashTrack? {
         if (data.dash?.videos == null) errorExit { "获取 Dash 视频流 [data.dash.videos] 失败, 稍后重试看看" }
         Log.debug { "当前视频可用画质: [${data.acceptDescription.joinToString()}]" }
         val videos = data.dash!!.videos.asSequence()
 
         // quality filter
         val qualityList = videos.mapNotNull { it.id }
-        val filtered = qualityList.filter {
-            when (qualityStrategy) {
-                QualityStrategy.EXACT -> it == videoQuality
-                QualityStrategy.NEAR_UP -> it >= videoQuality
-                QualityStrategy.NEAR_DOWN -> it <= videoQuality
-            }
-        }.let {
-            when (qualityStrategy) {
-                QualityStrategy.EXACT -> it.firstOrNull()
-                QualityStrategy.NEAR_UP -> it.minOrNull() ?: qualityList.maxOrNull()
-                QualityStrategy.NEAR_DOWN -> it.maxOrNull() ?: qualityList.maxOrNull()
-            }
-        } ?: run {
+        val filtered = qualityList.filterByOpt(videoQuality) ?: run {
             if (videoQuality in data.acceptQuality) infoExit { "@|red,bold 匹配画质 [$videoQuality] 需要大会员, 停止下载|@".color }
             infoExit { "@|red 无匹配画质 [$videoQuality], 停止下载|@".color }
         }
@@ -351,9 +379,33 @@ class Dig : CliktCommand(
                 if (it.codec == target) return@firstOrNull true
             }
             false
-        } ?: infoExit { "无视频编码为 ${videoCodec.joinToString(" | ")} 的视频流, 停止下载" }
+        }
 
         return track
+    }
+
+    private fun filterAudio(data: VideoStreamData): DashTrack? {
+        if (data.dash?.audios == null) errorExit { "获取 Dash 音频流失败, 稍后重试看看" }
+        val audios = buildList {
+            addAll(data.dash?.audios!!)
+            data.dash?.dolby?.audio?.forEach { add(it) }
+        }
+        val target = audios.mapNotNull { it.id }.asSequence().filterByOpt(audioQuality)
+        return audios.firstOrNull { it.id == target }
+    }
+
+    private fun Sequence<QnQuality>.filterByOpt(opt: QnQuality) = filter {
+        when (qualityStrategy) {
+            QualityStrategy.EXACT -> it == opt
+            QualityStrategy.NEAR_UP -> it >= opt
+            QualityStrategy.NEAR_DOWN -> it <= opt
+        }
+    }.let {
+        when (qualityStrategy) {
+            QualityStrategy.EXACT -> it.firstOrNull()
+            QualityStrategy.NEAR_UP -> it.minOrNull() ?: this.maxOrNull()
+            QualityStrategy.NEAR_DOWN -> it.maxOrNull() ?: this.maxOrNull()
+        }
     }
 
     private suspend fun HttpClient.downloadStream(
@@ -390,5 +442,36 @@ class Dig : CliktCommand(
             coroutineScope = scope,
             key = key
         )
+    }
+
+    private suspend fun downloadStreamAndShow(
+        dst: File,
+        size: Size,
+        scope: CoroutineScope,
+        downloadJob: suspend () -> Job,
+    ) {
+        val cur = atomic(0L)
+
+        val downJob = downloadJob()
+        val countJob = scope.launch {
+            while (isActive) {
+                if (dst.exists()) cur.getAndSet(dst.length())
+                delay(100)
+            }
+        }
+        val printJob = scope.progressBar(cur, size.bytes)
+        downJob.invokeOnCompletion {
+            if (it is CancellationException) {
+                downJob.cancel()
+                countJob.cancel()
+            }
+            if (it == null) {
+                println()
+                echo("下载完成! 文件路径: ${dst.toPath().normalize().toFile().absolutePath}")
+            }
+        }
+        joinAll(downJob)
+        printJob.cancelAndJoin()
+        countJob.cancelAndJoin()
     }
 }

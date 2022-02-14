@@ -24,5 +24,6 @@ val audioQualityMap by lazy {
         "low" to QnQuality.AUDIO_LOW,
         "medium" to QnQuality.AUDIO_MEDIUM,
         "high" to QnQuality.AUDIO_HIGH,
+        "dolby" to QnQuality.AUDIO_DOLBY
     )
 }
