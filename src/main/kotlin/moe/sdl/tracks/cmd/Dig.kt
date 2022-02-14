@@ -12,7 +12,13 @@ import io.ktor.client.HttpClient
 import java.io.File
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import moe.sdl.tracks.config.client
 import moe.sdl.tracks.enums.DownloadType
@@ -30,6 +36,7 @@ import moe.sdl.tracks.util.io.downloadResumable
 import moe.sdl.tracks.util.io.fetchVideoDashTracks
 import moe.sdl.tracks.util.io.getRemoteFileSize
 import moe.sdl.tracks.util.string.Size
+import moe.sdl.tracks.util.string.progressBar
 import moe.sdl.tracks.util.string.toStringOrDefault
 import moe.sdl.tracks.util.string.trimBiliNumber
 import moe.sdl.yabapi.api.getBangumiDetailedByEp
@@ -235,16 +242,34 @@ class Dig : CliktCommand(name = "dig", help = """
                     it.toBandwidth(part.duration ?: return@toStringOrDefault "--").toShow()
                 }
                 echo("""
-                    @|bold 视频流信息: 
-                    -> 画质 ${tr.id} | 编码 ${tr.codec} | 帧率 ${tr.frameRate} F
-                    -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color)
-                client.client.downloadStream(
-                    url = url,
-                    dst = File("./${info.data!!.aid}.m4s"),
-                    partCount = 1,
-                    scope = scope,
-                    key = setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString())
-                )
+                    @|magenta ==>|@ @|bold 视频流信息: 
+                     -> 画质 ${tr.id} | 编码 ${tr.codec} | 帧率 ${tr.frameRate} F
+                     -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color)
+                val cur = atomic(0L)
+                val dst = File("./${info.data!!.aid}.m4s")
+                val downJob = scope.launch {
+                    client.client.downloadStream(
+                        url = url,
+                        dst = dst,
+                        partCount = 1,
+                        scope = scope,
+                        key = setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString())
+                    )
+                }
+                val countJob = scope.launch {
+                    while (isActive) {
+                        if (dst.exists()) cur.getAndSet(dst.length())
+                        delay(100)
+                    }
+                }
+                val printJob = scope.progressBar(cur, size.bytes)
+                joinAll(downJob)
+
+                delay(200)
+                printJob.cancelAndJoin()
+                countJob.cancelAndJoin()
+                println()
+                echo("下载完成! 文件路径: ${dst.toPath().normalize().toFile().absolutePath}")
             }
         }
     }
@@ -286,7 +311,13 @@ class Dig : CliktCommand(name = "dig", help = """
         return track
     }
 
-    private suspend fun HttpClient.downloadStream(url: String, dst: File, partCount: Long, scope: CoroutineScope, key: Set<String>) {
+    private suspend fun HttpClient.downloadStream(
+        url: String,
+        dst: File,
+        partCount: Long,
+        scope: CoroutineScope,
+        key: Set<String>,
+    ) {
         downloadResumable(
             url,
             dst,
@@ -302,6 +333,7 @@ class Dig : CliktCommand(name = "dig", help = """
                         Log.debug { "Deleting file at ${dst.absolutePath}" }
                         dst.delete()
                     }
+                    if (!it) infoExit { "退出程序..." }
                 }
             },
             headBuilder = { configureForBili() },

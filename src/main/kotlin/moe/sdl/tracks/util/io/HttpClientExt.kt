@@ -113,7 +113,6 @@ suspend fun HttpClient.downloadResumable(
     url: String,
     dst: File,
     onDuplicate: () -> Boolean,
-    onReceive: (received: Long, total: Long) -> Unit = { _, _ -> },
     headBuilder: HttpRequestBuilder.() -> Unit = {},
     getBuilder: HttpRequestBuilder.() -> Unit = {},
     partCount: Long = 1,
@@ -172,7 +171,6 @@ suspend fun HttpClient.downloadResumable(
                 header(HttpHeaders.Range, "bytes=${start + part.file.length()}-$end".also {
                     Log.debug { "Range header: $it" }
                 })
-                onReceive(part.file.length(), end)
             })
             sideData = sideData!!.copy().apply {
                 parts[index] = parts[index].copy(finished = true)
