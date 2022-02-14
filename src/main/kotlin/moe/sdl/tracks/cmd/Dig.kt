@@ -2,6 +2,7 @@ package moe.sdl.tracks.cmd
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.UsageError
+import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
@@ -33,15 +34,18 @@ import moe.sdl.tracks.model.VideoResult
 import moe.sdl.tracks.model.printConsole
 import moe.sdl.tracks.model.toAnsi
 import moe.sdl.tracks.util.Log
+import moe.sdl.tracks.util.PlaceholderContext
 import moe.sdl.tracks.util.basicContext
 import moe.sdl.tracks.util.color
 import moe.sdl.tracks.util.errorExit
+import moe.sdl.tracks.util.getCliPath
 import moe.sdl.tracks.util.infoExit
 import moe.sdl.tracks.util.io.configureForBili
 import moe.sdl.tracks.util.io.downloadFile
 import moe.sdl.tracks.util.io.downloadResumable
 import moe.sdl.tracks.util.io.fetchVideoDashTracks
 import moe.sdl.tracks.util.io.getRemoteFileSize
+import moe.sdl.tracks.util.io.toNormalizedAbsPath
 import moe.sdl.tracks.util.placeHolderContext
 import moe.sdl.tracks.util.string.Size
 import moe.sdl.tracks.util.string.progressBar
@@ -60,6 +64,10 @@ import moe.sdl.yabapi.data.video.VideoInfoGetResponse
 import moe.sdl.yabapi.enums.ImageFormat
 import moe.sdl.yabapi.util.encoding.bv
 import moe.sdl.yabapi.util.string.buildImageUrl
+import net.bramp.ffmpeg.FFmpeg
+import net.bramp.ffmpeg.FFmpegExecutor
+import net.bramp.ffmpeg.FFprobe
+import net.bramp.ffmpeg.builder.FFmpegOutputBuilder
 
 class Dig : CliktCommand(
     name = "dig", help = """
@@ -68,6 +76,21 @@ class Dig : CliktCommand(
     url - 输入 B 站视频 链接|短链接|号码
     """.trimIndent(), printHelpOnEmptyArgs = true
 ) {
+
+    init {
+        val errorTip =
+            "尝试获取 ffmpeg/ffprobe 路径失败! 若未下载可前往 https://www.ffmpeg.org/ 下载, 已下载的可通过 'tracks config -ffmpeg path/to/file' 指定路径"
+        if (tracksPreference.programDir.ffmpeg == null) {
+            val path = getCliPath("ffmpeg") ?: errorExit { errorTip }
+            TermUi.echo("@|yellow 自动检测到 ffmpeg 路径:|@ $path".color)
+            tracksPreference.programDir.ffmpeg = path
+        }
+        if (tracksPreference.programDir.ffprobe == null) {
+            val path = getCliPath("ffprobe") ?: errorExit { errorTip }
+            TermUi.echo("@|yellow 自动检测到 ffprobe 路径:|@ $path".color)
+            tracksPreference.programDir.ffprobe = path
+        }
+    }
 
     private val url by argument("url", "B 站视频地址或 av BV ss ep md 等号码")
 
@@ -183,6 +206,9 @@ class Dig : CliktCommand(
         }
     }
 
+    private val onlyArtifact by option("-clean-up", "-only-artifact", "-oa", help = "是否只保留混流后的成品, 默认开启")
+        .flag("-keep-artifact", "-ka", default = true)
+
     private val showAllParts by option(
         "-pd",
         "-part-detail",
@@ -258,6 +284,9 @@ class Dig : CliktCommand(
         }
         echo("已选择: @|bold ${parts.joinToString { it.part.toString() }}|@".color)
 
+        var videoDst: File? = null
+        var audioDst: File? = null
+
         if (downloads.contains(DownloadType.COVER)) {
             run {
                 echo("@|magenta ==>|@ @|bold 下载封面...|@".color)
@@ -290,6 +319,8 @@ class Dig : CliktCommand(
 
             // Filter and download video
             val videoPlaceholderContext by lazy { basicContext + part.placeHolderContext + info.data!!.placeHolderContext }
+            var videoStreamContext: PlaceholderContext? = null
+            var audioStreamContext: PlaceholderContext? = null
             run video@{
                 if (DownloadType.VIDEO in downloads) {
                     val tr = filterVideo(data) ?: run {
@@ -308,14 +339,15 @@ class Dig : CliktCommand(
                          -> 画质 ${tr.id} | 编码 ${tr.codec} | 帧率 ${tr.frameRate} F
                          -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color
                     )
-                    val videoDst =
-                        with(videoPlaceholderContext + tr.placeHolderContext) {
+                    videoStreamContext = tr.placeHolderContext
+                    videoDst =
+                        with(videoPlaceholderContext + videoStreamContext) {
                             tracksPreference.fileDir.videoName.decodePlaceholder()
                         }.let { File("./$it") }
 
-                    downloadStreamAndShow(videoDst, size, scope) {
+                    downloadStreamAndShow(videoDst!!, size, scope) {
                         client.client.downloadStream(
-                            url, videoDst, partCount = 1, scope = scope,
+                            url, videoDst!!, partCount = 1, scope = scope,
                             setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString(), size.bytes.toString()),
                         )
                     }
@@ -341,23 +373,82 @@ class Dig : CliktCommand(
                         @|magenta ==>|@ @|bold 音频流信息: 
                          -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color
                     )
-                    val placeholderContext = videoPlaceholderContext + tr.placeHolderContext
-                    val audioDst =
+                    audioStreamContext = tr.placeHolderContext
+                    val placeholderContext = videoPlaceholderContext + audioStreamContext
+                    audioDst =
                         with(placeholderContext) {
                             tracksPreference.fileDir.audioName.decodePlaceholder()
                         }.let { File("./$it") }
 
-                    downloadStreamAndShow(audioDst, size, scope) {
+                    downloadStreamAndShow(audioDst!!, size, scope) {
                         client.client.downloadStream(
-                            url, audioDst, partCount = 1, scope = scope,
+                            url, audioDst!!, partCount = 1, scope = scope,
                             setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString(), size.bytes.toString()),
                         )
                     }
                     println()
                 }
             }
+
+            // combine
+            if (videoDst?.exists() == true || audioDst?.exists() == true) {
+                echo("@|cyan,bold =============== 开始混流 ===============|@".color)
+                var final = with(videoPlaceholderContext + videoStreamContext + audioStreamContext) {
+                    tracksPreference.fileDir.finalArtifact.decodePlaceholder()
+                }.let { File("./$it") }
+                if (final.exists()) {
+                    final = final.duplicateRename()
+                    echo("@|yellow 检测到文件重复, 更名为:|@ ${final.name}".color)
+                }
+                val ffmpegDir = tracksPreference.programDir.ffmpeg
+                val ffprobeDir = tracksPreference.programDir.ffprobe
+                val ffmpeg =
+                    FFmpeg(ffmpegDir ?: errorExit { "FFmpeg 未配置! 通过 'tracks config -ffmpeg \"/path/to/file\"' 配置" })
+                val ffprobe =
+                    FFprobe(ffprobeDir ?: errorExit { "FFprobe 未配置! 通过 'tracks config -ffprobe \"/path/to/file\"' 配置" })
+                if (!ffmpeg.isFFmpeg) errorExit { "路径错误, 非 FFmpeg 路径!" }
+                val builder = ffmpeg.builder()
+                    .apply {
+                        videoDst?.let { addInput(it.toNormalizedAbsPath()) }
+                        audioDst?.let { addInput(it.toNormalizedAbsPath()) }
+                    }
+                    .addOutput(
+                        FFmpegOutputBuilder()
+                            .setVideoCodec("copy")
+                            .setAudioCodec("copy")
+                            .setFormat("mp4")
+                            .setFilename(final.toNormalizedAbsPath())
+                    )
+                val job = scope.launch {
+                    FFmpegExecutor(ffmpeg, ffprobe)
+                        .createJob(builder).run()
+                }
+                echo("混流中...")
+                job.join()
+                job.invokeOnCompletion {
+                    echo("@|yellow 混流完毕! |@ 文件存放于: ${final.toNormalizedAbsPath()}".color)
+                    if (onlyArtifact) {
+                        audioDst?.apply { if (exists()) delete() }
+                        videoDst?.apply { if (exists()) delete() }
+                    }
+                }
+            } else {
+                echo("@|cyan,bold 无视频或音频, 跳过混流...|@".color)
+            }
         }
     }
+
+    private fun File.duplicateRename(): File = if (exists()) {
+        val name = nameWithoutExtension.let {
+            val regex = Regex("""^(.+)\((\d+)\)$""")
+            val matchEntire = regex.matchEntire(it)
+            if (matchEntire != null) {
+                val (fst, snd) = matchEntire.destructured
+                "$fst(${snd.toInt() + 1})"
+            } else "$it(1)"
+        }
+        File(parent, "$name.$extension").duplicateRename()
+    } else this
 
     private fun filterVideo(data: VideoStreamData): DashTrack? {
         if (data.dash?.videos == null) errorExit { "获取 Dash 视频流 [data.dash.videos] 失败, 稍后重试看看" }

@@ -22,7 +22,7 @@ data class PlaceholderContext(
         return str
     }
 
-    operator fun plus(other: PlaceholderContext): PlaceholderContext = PlaceholderContext(this.map + other.map)
+    operator fun plus(other: PlaceholderContext?): PlaceholderContext = PlaceholderContext(this.map + other?.map.orEmpty())
 }
 
 @Suppress("NOTHING_TO_INLINE")

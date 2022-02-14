@@ -8,18 +8,20 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import moe.sdl.tracks.util.Log
 import moe.sdl.tracks.util.io.ensureCreate
 
 @Serializable
 internal abstract class Preference {
     internal abstract val file: File
-    @Transient internal val mutex = Mutex()
+    @Transient
+    internal val mutex = Mutex()
 }
 
 internal suspend inline fun <reified T : Preference> T.save() = mutex.withLock {
     Log.debug { "Saving ${T::class.qualifiedName} to ${file.absolutePath}" }
-    file.writeText(json.encodeToString(this))
+    file.writeText(prettyPrintJson.encodeToString(this))
 }
 
 internal inline fun <reified T : Preference> T.addShutdownSaveHook() {

@@ -1,7 +1,9 @@
 package moe.sdl.tracks.util.io
 
+import io.ktor.util.normalizeAndRelativize
 import java.io.File
 import java.net.URLDecoder
+import kotlin.io.path.absolutePathString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.sdl.tracks.util.Log
@@ -35,3 +37,5 @@ suspend fun File.ensureCreate() = withContext(Dispatchers.IO) {
         this@ensureCreate.createNewFile()
     }
 }
+
+fun File.toNormalizedAbsPath(): String = toPath().normalize().absolutePathString()

@@ -43,6 +43,10 @@ dependencies {
     // cli
     implementation("com.github.ajalt.clikt:clikt:3.4.0")
     implementation("org.fusesource.jansi:jansi:2.4.0")
+    // FFmpeg cli wrapper
+    implementation("net.bramp.ffmpeg:ffmpeg:0.6.2")
+    // for turning off noisy log
+    implementation("org.slf4j:slf4j-simple:1.7.5")
 }
 
 tasks.test {
