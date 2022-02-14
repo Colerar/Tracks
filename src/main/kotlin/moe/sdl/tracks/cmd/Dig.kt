@@ -13,7 +13,9 @@ import java.io.File
 import kotlin.math.max
 import kotlin.math.min
 import kotlinx.atomicfu.atomic
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -130,7 +132,7 @@ class Dig : CliktCommand(
 
     private val videoQuality by lazy {
         _videoQuality ?: run {
-            echo("@|yellow 未指定分辨率, 默认选择最高画质|@".color)
+            echo("@|yellow 未指定分辨率, 默认选择可下载的最高画质|@".color)
             QnQuality.V8K
         }
     }
@@ -285,15 +287,14 @@ class Dig : CliktCommand(
                         tracksPreference.fileDir.videoName.decodePlaceholder()
                     }.let { File("./$it") }
                 val cur = atomic(0L)
-                val downJob = scope.launch {
-                    client.client.downloadStream(
-                        url = url,
-                        dst = videoDst,
-                        partCount = 1,
-                        scope = scope,
-                        key = setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString())
-                    )
-                }
+
+                val downJob = client.client.downloadStream(
+                    url = url,
+                    dst = videoDst,
+                    partCount = 1,
+                    scope = scope,
+                    key = setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString())
+                )
                 val countJob = scope.launch {
                     while (isActive) {
                         if (videoDst.exists()) cur.getAndSet(videoDst.length())
@@ -301,13 +302,19 @@ class Dig : CliktCommand(
                     }
                 }
                 val printJob = scope.progressBar(cur, size.bytes)
+                downJob.invokeOnCompletion {
+                    if (it is CancellationException) {
+                        downJob.cancel()
+                        countJob.cancel()
+                    }
+                    if (it == null) {
+                        println()
+                        echo("下载完成! 文件路径: ${videoDst.toPath().normalize().toFile().absolutePath}")
+                    }
+                }
                 joinAll(downJob)
-
-                delay(200)
                 printJob.cancelAndJoin()
                 countJob.cancelAndJoin()
-                println()
-                echo("下载完成! 文件路径: ${videoDst.toPath().normalize().toFile().absolutePath}")
             }
         }
     }
@@ -355,7 +362,7 @@ class Dig : CliktCommand(
         partCount: Long,
         scope: CoroutineScope,
         key: Set<String>,
-    ) {
+    ) = scope.launch {
         downloadResumable(
             url,
             dst,
@@ -371,7 +378,10 @@ class Dig : CliktCommand(
                         Log.debug { "Deleting file at ${dst.absolutePath}" }
                         dst.delete()
                     }
-                    if (!it) infoExit { "退出程序..." }
+                    if (!it) {
+                        cancel("Exit for file duplicate")
+                        echo("@|yellow 跳过下载|@".color)
+                    }
                 }
             },
             headBuilder = { configureForBili() },
