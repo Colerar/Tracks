@@ -1,77 +1,42 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-# This workflow will build a Java project with Gradle and cache/restore any dependencies to improve the workflow execution time
-# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-gradle
+name: Gradle Build
 
-name: Java CI with Gradle
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+on: [workflow_dispatch]
 
 jobs:
-  buildDeb:
+  
+  build:
 
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest] # macos-latest, windows-latest
 
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up JDK 15
-      uses: actions/setup-java@v2
-      with:
-        java-version: '15'
-        distribution: 'adopt'
-    - name: Build with Gradle
-      uses: gradle/gradle-build-action@bc3340afc5e3cc44f2321809ac090d731c13c514
-      with:
-        arguments: packageDeb
-    - name: upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: Linux deb artifact
-        path: ./build/compose/binaries/main/deb/*.deb
-        
-  buildDmg:
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v2
-    - name: Set up JDK 15
-      uses: actions/setup-java@v2
-      with:
-        java-version: '15'
-        distribution: 'adopt'
-    - name: Build with Gradle
-      uses: gradle/gradle-build-action@bc3340afc5e3cc44f2321809ac090d731c13c514
-      with:
-        arguments: packageDmg
-    - name: upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: macOS dmg artifact
-        path: ./build/compose/binaries/main/dmg/*.dmg
-        
-  buildExe:
-    runs-on: windows-latest
 
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up JDK 15
+    - name: Set up JDK
       uses: actions/setup-java@v2
       with:
-        java-version: '15'
+        java-version: '17'
         distribution: 'adopt'
+
     - name: Build with Gradle
-      uses: gradle/gradle-build-action@bc3340afc5e3cc44f2321809ac090d731c13c514
+      uses: gradle/gradle-build-action@v2
       with:
-        arguments: packageExe
-    - name: upload a rtifact
-      uses: actions/upload-artifact@v2
+        arguments: assembleRelease
+
+    - name: 7z
+      uses: DuckSoft/create-7z-action@v1.0
       with:
-        name: Windows exe artifact
-        path: ./build/compose/binaries/main/exe/*.exe
-        
+        pathSource: ./build
+        pathTarget: ./release.7z
+
+    - name: Upload binaries to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: release.7z
+        asset_name: release.7z
+        tag: ${{ github.ref }}
+        overwrite: true
