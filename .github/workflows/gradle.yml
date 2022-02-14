@@ -1,7 +1,10 @@
 name: Gradle Build
 
-on: [workflow_dispatch]
-
+on:
+  push:
+    branches: [cli]
+  pull_request:
+    branches: [cli]
 jobs:
   
   build:
