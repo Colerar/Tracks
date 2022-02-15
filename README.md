@@ -1,6 +1,15 @@
 # Tracks
 Kotlin 编写的 B 站视频下载器
 
+<details>
+<summary>演示</summary>
+
+https://user-images.githubusercontent.com/62297254/154002139-1ac70e9f-0d05-4e9e-bd52-41460a676656.mp4
+
+![video-info](https://user-images.githubusercontent.com/62297254/154002674-83fb713f-0e26-4527-af5d-452e47eb7a5e.jpg)
+
+</details>
+
 ## 功能列表 & TODO
 
 - 封装
