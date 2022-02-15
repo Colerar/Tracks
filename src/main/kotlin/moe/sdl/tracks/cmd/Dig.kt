@@ -79,7 +79,7 @@ class Dig : CliktCommand(
 
     init {
         val errorTip =
-            "尝试获取 ffmpeg/ffprobe 路径失败! 若未下载可前往 https://www.ffmpeg.org/ 下载, 已下载的可通过 'tracks config -ffmpeg path/to/file' 指定路径"
+            "尝试获取 ffmpeg/ffprobe 路径失败! 若未下载可前往 https://www.ffmpeg.org/ 下载, 已下载的可通过 'tracks config ffmpeg=path/to/file' 指定路径"
         if (tracksPreference.programDir.ffmpeg == null) {
             val path = getCliPath("ffmpeg") ?: errorExit { errorTip }
             TermUi.echo("@|yellow 自动检测到 ffmpeg 路径:|@ $path".color)
@@ -420,10 +420,10 @@ class Dig : CliktCommand(
                     val ffmpegDir = tracksPreference.programDir.ffmpeg
                     val ffprobeDir = tracksPreference.programDir.ffprobe
                     val ffmpeg =
-                        FFmpeg(ffmpegDir ?: errorExit { "FFmpeg 未配置! 通过 'tracks config -ffmpeg \"/path/to/file\"' 配置" })
+                        FFmpeg(ffmpegDir ?: errorExit { "FFmpeg 未配置! 通过 'tracks config ffmpeg=/path/to/file' 配置" })
                     val ffprobe =
                         FFprobe(
-                            ffprobeDir ?: errorExit { "FFprobe 未配置! 通过 'tracks config -ffprobe \"/path/to/file\"' 配置" })
+                            ffprobeDir ?: errorExit { "FFprobe 未配置! 通过 'tracks config ffprobe=/path/to/file' 配置" })
                     if (!ffmpeg.isFFmpeg) errorExit { "路径错误, 非 FFmpeg 路径!" }
                     val builder = ffmpeg.builder()
                         .apply {
