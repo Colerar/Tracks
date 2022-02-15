@@ -1,4 +1,7 @@
 # Tracks
+
+![tracks-version](https://img.shields.io/badge/version-1.0.0-orange?style=for-the-badge)
+
 Kotlin 编写的 B 站视频下载器
 
 <details>
@@ -13,10 +16,12 @@ https://user-images.githubusercontent.com/62297254/154002139-1ac70e9f-0d05-4e9e-
 ## 功能列表 & TODO
 
 - 封装
-  - [ ] 使用 FFmpeg cli 转封装
+  - [X] 使用 FFmpeg cli 转封装
 - 下载
+  - [X] 普通视频下载
+  - [X] 指定分 P
   - [X] 断点续传
-  - [X] 分片多线程下载
+  - [ ] 分片多线程下载
   - [ ] Aria2 支持
   - [ ] 指定时长下载?
 - 订阅
