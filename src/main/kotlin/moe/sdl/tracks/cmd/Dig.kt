@@ -18,6 +18,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
@@ -206,7 +207,7 @@ class Dig : CliktCommand(
     }
 
     private val onlyArtifact by option("-clean-up", "-only-artifact", "-oa", help = "是否只保留混流后的成品, 默认开启")
-        .flag("-keep-artifact", "-ka", default = true)
+        .flag("-keep-material", "-km", default = true)
 
     private val skipMux by option("-skip-mux", "-sm", help = "跳过混流")
         .flag("-mux", "-m", default = false)
@@ -445,6 +446,7 @@ class Dig : CliktCommand(
                     job.invokeOnCompletion {
                         echo("@|yellow 混流完毕! |@ 文件存放于: ${final.toNormalizedAbsPath()}".color)
                         if (onlyArtifact) {
+                            echo("清除中间文件...")
                             audioDst?.apply { if (exists()) delete() }
                             videoDst?.apply { if (exists()) delete() }
                         }
@@ -539,8 +541,8 @@ class Dig : CliktCommand(
                         dst.delete()
                     }
                     if (!it) {
-                        cancel("Exit for file duplicate")
                         echo("@|yellow 跳过下载|@".color)
+                        cancel("Exit for file duplicate")
                     }
                 }
             },
@@ -557,35 +559,39 @@ class Dig : CliktCommand(
         size: Size,
         scope: CoroutineScope,
         downloadJob: suspend () -> Job,
-    ) {
-        val cur = atomic(0L)
+    ) = coroutineScope {
+        launch {
+            val cur = atomic(0L)
 
-        runCatching {
-            val downJob = downloadJob()
-            val countJob = scope.launch {
-                while (isActive) {
-                    if (dst.exists()) cur.getAndSet(dst.length())
-                    delay(100)
+            runCatching {
+                val downJob = downloadJob()
+                val countJob = scope.launch {
+                    while (isActive) {
+                        if (dst.exists()) cur.getAndSet(dst.length())
+                        delay(100)
+                    }
                 }
-            }
-            val printJob = scope.progressBar(cur, size.bytes)
-            printJob.invokeOnCompletion {
-                if (it is CancellationException) {
-                    countJob.cancel()
+                val printJob = scope.progressBar(cur, size.bytes)
+                printJob.invokeOnCompletion {
+                    if (it is CancellationException) {
+                        countJob.cancel()
+                    }
                 }
-            }
-            downJob.invokeOnCompletion {
-                if (it is CancellationException) {
-                    downJob.cancel()
-                    countJob.cancel()
+                downJob.invokeOnCompletion {
+                    if (it is CancellationException) {
+                        downJob.cancel()
+                        printJob.cancel()
+                        countJob.cancel()
+                        cancel("Cancel for download job cancelled")
+                    }
                 }
+                joinAll(downJob, printJob)
+            }.onSuccess {
+                echo()
+                echo("下载完成! 文件路径: ${dst.toPath().normalize().toFile().absolutePath}")
+            }.onFailure {
+                if (it is CancellationException) throw it else echo(it)
             }
-            joinAll(downJob, printJob)
-        }.onSuccess {
-            echo()
-            echo("下载完成! 文件路径: ${dst.toPath().normalize().toFile().absolutePath}")
-        }.onFailure {
-            if (it is CancellationException) throw it else echo(it)
         }
     }
 }
