@@ -5,6 +5,7 @@ import kotlin.math.min
 import kotlinx.atomicfu.AtomicLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -32,6 +33,7 @@ fun CoroutineScope.progressBar(
         print(StringBuilder("\u0008").repeat(lastLen))
         print(str)
         lastLen = str.length
+        if (rate >= 1) cancel("Download Complete")
         delay(freshInterval)
     }
 }

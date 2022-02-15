@@ -18,7 +18,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
@@ -209,6 +208,9 @@ class Dig : CliktCommand(
     private val onlyArtifact by option("-clean-up", "-only-artifact", "-oa", help = "是否只保留混流后的成品, 默认开启")
         .flag("-keep-artifact", "-ka", default = true)
 
+    private val skipMux by option("-skip-mux", "-sm", help = "跳过混流")
+        .flag("-mux", "-m", default = false)
+
     private val showAllParts by option(
         "-pd",
         "-part-detail",
@@ -284,9 +286,7 @@ class Dig : CliktCommand(
         }
         echo("已选择: @|bold ${parts.joinToString { it.part.toString() }}|@".color)
 
-        var videoDst: File? = null
-        var audioDst: File? = null
-
+        // download cover
         if (downloads.contains(DownloadType.COVER)) {
             run {
                 echo("@|magenta ==>|@ @|bold 下载封面...|@".color)
@@ -295,6 +295,7 @@ class Dig : CliktCommand(
                 }.let { File("./$it") }.also {
                     if (it.exists()) {
                         echo("@|yellow 封面已存在, 跳过下载|@".color)
+                        echo()
                         return@run
                     }
                 }
@@ -308,7 +309,14 @@ class Dig : CliktCommand(
             }
         }
 
+        var downloadedPart = 0
+
         parts.forEach { part ->
+            if (downloadedPart >= 1) {
+                repeat(2) { echo() }
+            }
+            downloadedPart++
+
             echo("@|bold 下载分 P: |@".color.toString() + part.toAnsi().toString())
             val response = client.fetchVideoDashTracks(
                 aid = info.data?.aid ?: errorExit { "获取 aid 失败, 可能是网络错误, 稍后重试看看" },
@@ -317,10 +325,16 @@ class Dig : CliktCommand(
             if (response.code != GeneralCode.SUCCESS) errorExit { "取流失败 ${response.code} - ${response.message}" }
             val data = response.data ?: errorExit { "取流 [response.data] 失败, 稍后重试看看" }
 
-            // Filter and download video
+            // for mux
+            var videoDst: File? = null
+            var audioDst: File? = null
+
+            // placeholder context for file name
             val videoPlaceholderContext by lazy { basicContext + part.placeHolderContext + info.data!!.placeHolderContext }
             var videoStreamContext: PlaceholderContext? = null
             var audioStreamContext: PlaceholderContext? = null
+
+            // Filter and download video
             run video@{
                 if (DownloadType.VIDEO in downloads) {
                     val tr = filterVideo(data) ?: run {
@@ -351,12 +365,12 @@ class Dig : CliktCommand(
                             setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString(), size.bytes.toString()),
                         )
                     }
-                    println()
+                    echo()
                 }
             }
 
+            // Filter and download audio
             run audio@{
-                // Filter and download audio
                 if (DownloadType.AUDIO in downloads) {
                     val tr = filterAudio(data) ?: run {
                         echo("@|red 未发现音频流, 跳过音频下载 |@".color)
@@ -386,54 +400,57 @@ class Dig : CliktCommand(
                             setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString(), size.bytes.toString()),
                         )
                     }
-                    println()
+                    echo()
                 }
             }
 
-            // combine
-            if (videoDst?.exists() == true || audioDst?.exists() == true) {
-                echo("@|cyan,bold =============== 开始混流 ===============|@".color)
-                var final = with(videoPlaceholderContext + videoStreamContext + audioStreamContext) {
-                    tracksPreference.fileDir.finalArtifact.decodePlaceholder()
-                }.let { File("./$it") }
-                if (final.exists()) {
-                    final = final.duplicateRename()
-                    echo("@|yellow 检测到文件重复, 更名为:|@ ${final.name}".color)
-                }
-                val ffmpegDir = tracksPreference.programDir.ffmpeg
-                val ffprobeDir = tracksPreference.programDir.ffprobe
-                val ffmpeg =
-                    FFmpeg(ffmpegDir ?: errorExit { "FFmpeg 未配置! 通过 'tracks config -ffmpeg \"/path/to/file\"' 配置" })
-                val ffprobe =
-                    FFprobe(ffprobeDir ?: errorExit { "FFprobe 未配置! 通过 'tracks config -ffprobe \"/path/to/file\"' 配置" })
-                if (!ffmpeg.isFFmpeg) errorExit { "路径错误, 非 FFmpeg 路径!" }
-                val builder = ffmpeg.builder()
-                    .apply {
-                        videoDst?.let { addInput(it.toNormalizedAbsPath()) }
-                        audioDst?.let { addInput(it.toNormalizedAbsPath()) }
+            // Mux video and audio
+            when {
+                skipMux -> echo("@|cyan,bold 根据选项跳过混流...|@".color)
+                videoDst?.exists() == true || audioDst?.exists() == true -> {
+                    echo("@|magenta ==>|@ @|bold 开始混流...|@".color)
+                    var final = with(videoPlaceholderContext + videoStreamContext + audioStreamContext) {
+                        tracksPreference.fileDir.finalArtifact.decodePlaceholder()
+                    }.let { File("./$it") }
+                    if (final.exists()) {
+                        final = final.duplicateRename()
+                        echo("@|yellow 检测到文件重复, 更名为:|@ ${final.name}".color)
                     }
-                    .addOutput(
-                        FFmpegOutputBuilder()
-                            .setVideoCodec("copy")
-                            .setAudioCodec("copy")
-                            .setFormat("mp4")
-                            .setFilename(final.toNormalizedAbsPath())
-                    )
-                val job = scope.launch {
-                    FFmpegExecutor(ffmpeg, ffprobe)
-                        .createJob(builder).run()
-                }
-                echo("混流中...")
-                job.join()
-                job.invokeOnCompletion {
-                    echo("@|yellow 混流完毕! |@ 文件存放于: ${final.toNormalizedAbsPath()}".color)
-                    if (onlyArtifact) {
-                        audioDst?.apply { if (exists()) delete() }
-                        videoDst?.apply { if (exists()) delete() }
+                    val ffmpegDir = tracksPreference.programDir.ffmpeg
+                    val ffprobeDir = tracksPreference.programDir.ffprobe
+                    val ffmpeg =
+                        FFmpeg(ffmpegDir ?: errorExit { "FFmpeg 未配置! 通过 'tracks config -ffmpeg \"/path/to/file\"' 配置" })
+                    val ffprobe =
+                        FFprobe(
+                            ffprobeDir ?: errorExit { "FFprobe 未配置! 通过 'tracks config -ffprobe \"/path/to/file\"' 配置" })
+                    if (!ffmpeg.isFFmpeg) errorExit { "路径错误, 非 FFmpeg 路径!" }
+                    val builder = ffmpeg.builder()
+                        .apply {
+                            videoDst?.let { addInput(it.toNormalizedAbsPath()) }
+                            audioDst?.let { addInput(it.toNormalizedAbsPath()) }
+                        }
+                        .addOutput(
+                            FFmpegOutputBuilder()
+                                .setVideoCodec("copy")
+                                .setAudioCodec("copy")
+                                .setFormat("mp4")
+                                .setFilename(final.toNormalizedAbsPath())
+                        )
+                    val job = scope.launch {
+                        FFmpegExecutor(ffmpeg, ffprobe)
+                            .createJob(builder).run()
+                    }
+                    echo("混流中...")
+                    job.join()
+                    job.invokeOnCompletion {
+                        echo("@|yellow 混流完毕! |@ 文件存放于: ${final.toNormalizedAbsPath()}".color)
+                        if (onlyArtifact) {
+                            audioDst?.apply { if (exists()) delete() }
+                            videoDst?.apply { if (exists()) delete() }
+                        }
                     }
                 }
-            } else {
-                echo("@|cyan,bold 无视频或音频, 跳过混流...|@".color)
+                else -> echo("@|cyan,bold 无视频或音频, 跳过混流...|@".color)
             }
         }
     }
@@ -543,26 +560,32 @@ class Dig : CliktCommand(
     ) {
         val cur = atomic(0L)
 
-        val downJob = downloadJob()
-        val countJob = scope.launch {
-            while (isActive) {
-                if (dst.exists()) cur.getAndSet(dst.length())
-                delay(100)
+        runCatching {
+            val downJob = downloadJob()
+            val countJob = scope.launch {
+                while (isActive) {
+                    if (dst.exists()) cur.getAndSet(dst.length())
+                    delay(100)
+                }
             }
+            val printJob = scope.progressBar(cur, size.bytes)
+            printJob.invokeOnCompletion {
+                if (it is CancellationException) {
+                    countJob.cancel()
+                }
+            }
+            downJob.invokeOnCompletion {
+                if (it is CancellationException) {
+                    downJob.cancel()
+                    countJob.cancel()
+                }
+            }
+            joinAll(downJob, printJob)
+        }.onSuccess {
+            echo()
+            echo("下载完成! 文件路径: ${dst.toPath().normalize().toFile().absolutePath}")
+        }.onFailure {
+            if (it is CancellationException) throw it else echo(it)
         }
-        val printJob = scope.progressBar(cur, size.bytes)
-        downJob.invokeOnCompletion {
-            if (it is CancellationException) {
-                downJob.cancel()
-                countJob.cancel()
-            }
-            if (it == null) {
-                println()
-                echo("下载完成! 文件路径: ${dst.toPath().normalize().toFile().absolutePath}")
-            }
-        }
-        joinAll(downJob)
-        printJob.cancelAndJoin()
-        countJob.cancelAndJoin()
     }
 }
