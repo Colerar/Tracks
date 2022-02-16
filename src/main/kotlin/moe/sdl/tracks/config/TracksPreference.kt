@@ -16,6 +16,7 @@ internal class TracksPreference(
     val enableColor: Boolean = true,
     val fileDir: Path = Path(),
     val programDir: Program = Program(),
+    var first: Boolean = true
 ) : Preference() {
     @Transient
     override val file: File = File(TRACKS_CONFIG_FILE)

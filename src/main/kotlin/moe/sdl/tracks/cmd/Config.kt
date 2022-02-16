@@ -22,7 +22,8 @@ class Config : CliktCommand(
     'tracks config key1,key2' 查询 key1 和 key2 的值
     
     'tracks config key1=xxx,key2' 设置 key1 为 xxx, 查询 key2
-    """.trimIndent(), printHelpOnEmptyArgs = true
+    """.trimIndent(),
+    printHelpOnEmptyArgs = true
 ) {
     private val expr by argument("expr", help = "表达式")
         .convert { opt ->
