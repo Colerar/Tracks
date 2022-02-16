@@ -42,7 +42,7 @@ internal fun Int.toStringWithUnit(
 }
 
 internal fun Int.secondsToDuration(): String {
-    if (this <= 0) return "--"
+    if (this <= 0) return "00:00"
     val seconds = this % 60
     val minutes = (this / 60) % 60
     val hours = this / 3600
@@ -134,9 +134,46 @@ value class Bandwidth(
     }
 
     fun toBytes() = Size(bps / 8)
+
+    // bps / (8 / 1024 * 1000)
+    fun toBytesBandwidth() = BytesBandwidth((bps / 7.8125).toLong())
 }
 
 private const val SIZE_SCALE = 1024.0
+
+@JvmInline
+value class BytesBandwidth(
+    val bytes: Long
+) {
+    /**
+     * `KiB/s`
+     */
+    val kibPerS: Double
+        get() = bytes / SIZE_SCALE
+
+
+    /**
+     * `MiB/s`
+     */
+    val mibPerS: Double
+        get() = kibPerS / SIZE_SCALE
+
+    /**
+     * `GiB/s`
+     */
+    val gibPerS: Double
+        get() = mibPerS / SIZE_SCALE
+
+    fun toShow(): String = when {
+        gibPerS >= 1 -> String.format("%.2f GiB/s", gibPerS)
+        mibPerS >= 1 -> String.format("%.1f MiB/s", mibPerS)
+        kibPerS >= 1 -> String.format("%.0f KiB/s", kibPerS)
+        else -> String.format("%d B/s", bytes)
+    }
+
+    // 8 / 1000 * 1024
+    fun toBps() = Size((bytes * 8.192).toLong())
+}
 
 /**
  * bytes, with binary unit, like `KiB` `MiB` `GiB`
@@ -174,4 +211,5 @@ value class Size(
      * @param duration unit in second
      */
     fun toBandwidth(duration: Long): Bandwidth = Bandwidth(bytes * 8 / duration)
+    fun toBandwidthMs(duration: Long): Bandwidth = Bandwidth(bytes * 8 * 1000 / duration)
 }

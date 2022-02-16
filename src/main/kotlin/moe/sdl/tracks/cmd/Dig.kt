@@ -9,11 +9,15 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.switch
+import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.int
 import io.ktor.client.HttpClient
 import java.io.File
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.atomicfu.AtomicRef
 import kotlinx.atomicfu.atomic
+import kotlinx.atomicfu.getAndUpdate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -122,6 +126,12 @@ class Dig : CliktCommand(
         "-only-subtitle" to DownloadType.SUBTITLE,
         "-only-cover" to DownloadType.COVER,
     )
+
+    private val multipart by option("-multipart", "-mtn", help = "下载分块数, 默认不分块")
+        .int().default(1)
+        .validate {
+            if (it !in 1..16) throw UsageError("分块数 n 应该满足 1 ≤ n ≤ 16 ", this, context)
+        }
 
     private val downloads: Set<DownloadType> by lazy {
         only?.let {
@@ -324,21 +334,46 @@ class Dig : CliktCommand(
     private suspend fun processBangumi(info: BangumiDetailedResponse, id: String, scope: CoroutineScope) {
         if (info.data == null) errorExit(withHelp = false) { "获取 PGC 信息失败, 可能是地区限制或网络波动: ${info.code} - ${info.message}" }
         echo(info.data?.toAnsi())
-        val isEp = id.startsWith("ep")
+        val isEpisode = id.startsWith("ep")
+        val isSeason = id.startsWith("ss")
         val numId = id.drop(2).toIntOrNull() ?: errorExit(withHelp = false) { "EP 或 SS 号解析失败, id: $id" }
         val bangumiContext = basicContext + info.data!!.placeHolderResult
         val dst = bangumiContext.buildFile(tracksPreference.fileDir.coverName)
+        var episodes = info.data?.episodes ?: infoExit { "无可用集数, 退出下载" }
         downloadCover(info.data!!.cover, dst)
-        if (isEp) {
-            val epInfo = info.data!!.episodes.firstOrNull { it.id == numId } ?: errorExit { "获取单集信息失败, 稍后重试看看" }
-            echo("@|bold 下载${info.data!!.type.toShow()}单集:|@ ${epInfo.toAnsi()}".color)
-            val result = client.fetchPgcDashTracks(numId).data ?: errorExit { "获取 ep$numId 视频流失败" }
+        episodes = when {
+            targetParts.isNullOrEmpty() && isEpisode ->
+                listOf(episodes.firstOrNull { it.id == numId } ?: infoExit { "无法找到 ep$numId, 退出下载" })
+            targetParts.isNullOrEmpty() && isSeason -> {
+                echo("@|yellow 未选择集数, 默认下载 P1. |@".color)
+                listOf(episodes.first())
+            }
+            !targetParts.isNullOrEmpty() && (isSeason || isEpisode) -> {
+                if (targetParts!!.contains(0)) episodes else
+                    episodes.filterIndexed { index, _ ->
+                        targetParts!!.contains(index + 1)
+                    }
+            }
+            else -> errorExit(withHelp = false) { "集数选择遇到了意料外的情况, 可能是无可用集数" }
+        }
+        echo("@|bold 已选择:|@ ${episodes.map { it.title }}".color)
+        episodes.forEachIndexed { index, episode ->
+            if (index >= 1) repeat(2) { echo() }
+            echo("@|bold 下载${info.data!!.type.toShow()}单集:|@ ${episode.toAnsi()}".color)
+            val result = client.fetchPgcDashTracks(episode.id ?: run {
+                echo("@|yellow 无法获取本集 epid, 跳过下载|@".color)
+                return@forEachIndexed
+            }).data ?: run {
+                echo("@|获取 ep$numId 视频流失败, 跳过下载|@".color)
+                return@forEachIndexed
+            }
             downloadAndMux(
                 result, scope,
-                placeholderContext = bangumiContext + epInfo.placeHolderContext,
-                keys = setOf(epInfo.id.toString(), info.data?.seasonId.toString())
+                placeholderContext = bangumiContext + episode.placeHolderContext,
+                keys = setOf(episode.id.toString(), info.data?.seasonId.toString())
             )
         }
+
     }
 
     /**
@@ -347,7 +382,7 @@ class Dig : CliktCommand(
     private suspend fun muxStream(audioDst: File?, videoDst: File?, final: File, scope: CoroutineScope) {
         val artifact = if (final.exists()) {
             final.duplicateRename().also {
-                echo("@|yellow 检测到文件重复, 更名为:|@ ${final.name}".color)
+                echo("@|yellow 检测到文件重复, 更名为:|@ ${it.name}".color)
             }
         } else final
         val ffmpegDir = tracksPreference.programDir.ffmpeg
@@ -496,13 +531,15 @@ class Dig : CliktCommand(
         var videoStreamContext: PlaceholderContext? = null
         var audioStreamContext: PlaceholderContext? = null
 
-        suspend fun downloadStream(dst: File, track: DashTrack, url: String, size: Size) =
-            downloadStreamAndShow(dst, size, scope) {
+        suspend fun downloadStream(dst: File, track: DashTrack, url: String, size: Size) {
+            val filesRef = atomic<List<File>>(emptyList())
+            downloadStreamAndShow(dst, size, scope, filesRef) {
                 client.client.downloadStream(
-                    url, dst, partCount = 1, scope = scope,
-                    setOf(track.id.toString(), track.codec.toString(), size.bytes.toString()) + keys,
+                    url, dst, partCount = multipart.toLong(), scope = scope,
+                    filesRef, setOf(track.id.toString(), track.codec.toString(), size.bytes.toString()) + keys,
                 )
             }
+        }
 
         // Filter and download video
         run video@{
@@ -577,11 +614,13 @@ class Dig : CliktCommand(
         dst: File,
         partCount: Long,
         scope: CoroutineScope,
+        filesRef: AtomicRef<List<File>>? = null,
         key: Set<String>,
     ) = scope.launch {
         downloadResumable(
             url,
             dst,
+            filesRef = filesRef,
             onDuplicate = {
                 (prompt(text = "目标文件已经存在, 要覆盖吗? (y|n)", default = "n") { str ->
                     when {
@@ -612,6 +651,7 @@ class Dig : CliktCommand(
         dst: File,
         size: Size,
         scope: CoroutineScope,
+        filesRef: AtomicRef<List<File>>,
         downloadJob: suspend () -> Job,
     ) = coroutineScope {
         launch {
@@ -621,25 +661,21 @@ class Dig : CliktCommand(
                 val downJob = downloadJob()
                 val countJob = scope.launch {
                     while (isActive) {
-                        if (dst.exists()) cur.getAndSet(dst.length())
+                        cur.getAndUpdate { _ ->
+                            filesRef.value.filter {
+                                it.exists()
+                            }.fold(0L) { acc, file ->
+                                acc + file.length()
+                            }
+                        }
                         delay(100)
                     }
                 }
                 val printJob = scope.progressBar(cur, size.bytes)
-                printJob.invokeOnCompletion {
-                    if (it is CancellationException) {
-                        countJob.cancel()
-                    }
-                }
-                downJob.invokeOnCompletion {
-                    if (it is CancellationException) {
-                        downJob.cancel()
-                        printJob.cancel()
-                        countJob.cancel()
-                        cancel("Cancel for download job cancelled")
-                    }
-                }
-                joinAll(downJob, printJob)
+                printJob.invokeOnCompletion { countJob.cancel() }
+                joinAll(downJob)
+                delay(300)
+                printJob.cancel()
             }.onSuccess {
                 echo()
                 echo("下载完成! 文件路径: ${dst.toPath().normalize().toFile().absolutePath}")

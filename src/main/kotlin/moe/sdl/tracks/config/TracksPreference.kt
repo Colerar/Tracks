@@ -16,7 +16,8 @@ internal class TracksPreference(
     val enableColor: Boolean = true,
     val fileDir: Path = Path(),
     val programDir: Program = Program(),
-    var first: Boolean = true
+    val show: Show = Show(),
+    var first: Boolean = true,
 ) : Preference() {
     @Transient
     override val file: File = File(TRACKS_CONFIG_FILE)
@@ -30,8 +31,13 @@ internal class TracksPreference(
     )
 
     @Serializable
-    data class Program(
+    class Program(
         var ffmpeg: String? = null,
 //        var ffprobe: String? = null,
+    )
+
+    @Serializable
+    class Show(
+        val progressInterval: Long = 100,
     )
 }

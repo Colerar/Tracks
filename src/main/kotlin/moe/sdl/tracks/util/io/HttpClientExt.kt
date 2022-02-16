@@ -15,6 +15,7 @@ import io.ktor.utils.io.core.readBytes
 import java.io.File
 import kotlin.contracts.ExperimentalContracts
 import kotlin.properties.Delegates
+import kotlinx.atomicfu.AtomicRef
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -116,6 +117,7 @@ suspend fun HttpClient.downloadResumable(
     headBuilder: HttpRequestBuilder.() -> Unit = {},
     getBuilder: HttpRequestBuilder.() -> Unit = {},
     partCount: Long = 1,
+    filesRef: AtomicRef<List<File>>? = null,
     coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO + CoroutineName("Tracks-Download")),
     key: Set<String> = emptySet(),
 ) {
@@ -125,7 +127,7 @@ suspend fun HttpClient.downloadResumable(
         Log.debug { "SideData updated: $new" }
     }
 
-    suspend fun initFile()  {
+    suspend fun initFile() {
         val total: Long = getRemoteFileSize(url, headBuilder)
         val files = buildList {
             if (partCount == 1L) this.add(dst)
@@ -162,6 +164,8 @@ suspend fun HttpClient.downloadResumable(
     requireNotNull(sideData) { "Failed to load sideData, find null" }
 
     require(sideData!!.parts.isNotEmpty()) { "Failed to load sideData.parts, find empty" }
+
+    filesRef?.getAndSet(sideData!!.parts.map { it.file })
 
     sideData?.parts?.mapIndexed { index, part ->
         coroutineScope.async {
