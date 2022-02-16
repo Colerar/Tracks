@@ -10,7 +10,6 @@ import moe.sdl.tracks.config.tracksPreference
 import moe.sdl.tracks.util.color
 import moe.sdl.tracks.util.io.toNormalizedAbsPath
 import net.bramp.ffmpeg.FFmpeg
-import net.bramp.ffmpeg.FFprobe
 
 class Config : CliktCommand(
     name = "config", help = """
@@ -69,16 +68,16 @@ private val keyMap by lazy {
                 } else TermUi.echo("@|red 输入路径非 FFmpeg 路径: $abs|@".color)
             },
         ),
-        "ffprobe" to ArgumentOperation(
-            onQuery = { TermUi.echo("FFprobe 路径目前为 ${tracksPreference.programDir.ffprobe}") },
-            onSet = {
-                val abs = File(it).toNormalizedAbsPath()
-                if (FFprobe(abs).isFFprobe) {
-                    tracksPreference.programDir.ffprobe = abs
-                    TermUi.echo("@|yellow FFprobe 路径被设置为: $it |@".color)
-                } else TermUi.echo("@|red 输入路径非 FFprobe 路径: $abs|@".color)
-            },
-        )
+//        "ffprobe" to ArgumentOperation(
+//            onQuery = { TermUi.echo("FFprobe 路径目前为 ${tracksPreference.programDir.ffprobe}") },
+//            onSet = {
+//                val abs = File(it).toNormalizedAbsPath()
+//                if (FFprobe(abs).isFFprobe) {
+//                    tracksPreference.programDir.ffprobe = abs
+//                    TermUi.echo("@|yellow FFprobe 路径被设置为: $it |@".color)
+//                } else TermUi.echo("@|red 输入路径非 FFprobe 路径: $abs|@".color)
+//            },
+//        )
     )
 }
 

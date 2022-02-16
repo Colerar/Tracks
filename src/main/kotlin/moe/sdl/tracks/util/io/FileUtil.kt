@@ -1,6 +1,5 @@
 package moe.sdl.tracks.util.io
 
-import io.ktor.util.normalizeAndRelativize
 import java.io.File
 import java.net.URLDecoder
 import kotlin.io.path.absolutePathString

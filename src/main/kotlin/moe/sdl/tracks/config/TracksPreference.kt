@@ -5,7 +5,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import moe.sdl.tracks.consts.TRACKS_CONFIG_FILE
-import moe.sdl.tracks.util.getCliPath
 
 internal val tracksPreference: TracksPreference =
     runBlocking { getOrCreatePreference(TracksPreference()) }.apply {
@@ -23,15 +22,15 @@ internal class TracksPreference(
 
     @Serializable
     class Path(
-        val videoName: String = "%date%-%video:bv%-%part:num%.m4v",
-        val audioName: String = "%date%-%video:bv%-%part:num%.m4a",
         val coverName: String = "%date%-%video:title%.png",
+        val videoName: String = "%date%-%video:title%-%part:num%.m4v",
+        val audioName: String = "%date%-%video:title%-%part:num%.m4a",
         val finalArtifact: String = "%date%-%video:title%-%part:num%.mp4",
     )
 
     @Serializable
     data class Program(
         var ffmpeg: String? = null,
-        var ffprobe: String? = null,
+//        var ffprobe: String? = null,
     )
 }

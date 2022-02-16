@@ -33,9 +33,11 @@ import moe.sdl.tracks.enums.videoQualityMap
 import moe.sdl.tracks.model.VideoResult
 import moe.sdl.tracks.model.printConsole
 import moe.sdl.tracks.model.toAnsi
+import moe.sdl.tracks.model.toShow
 import moe.sdl.tracks.util.Log
 import moe.sdl.tracks.util.PlaceholderContext
 import moe.sdl.tracks.util.basicContext
+import moe.sdl.tracks.util.buildFile
 import moe.sdl.tracks.util.color
 import moe.sdl.tracks.util.errorExit
 import moe.sdl.tracks.util.getCliPath
@@ -43,10 +45,12 @@ import moe.sdl.tracks.util.infoExit
 import moe.sdl.tracks.util.io.configureForBili
 import moe.sdl.tracks.util.io.downloadFile
 import moe.sdl.tracks.util.io.downloadResumable
+import moe.sdl.tracks.util.io.fetchPgcDashTracks
 import moe.sdl.tracks.util.io.fetchVideoDashTracks
 import moe.sdl.tracks.util.io.getRemoteFileSize
 import moe.sdl.tracks.util.io.toNormalizedAbsPath
 import moe.sdl.tracks.util.placeHolderContext
+import moe.sdl.tracks.util.placeHolderResult
 import moe.sdl.tracks.util.string.Size
 import moe.sdl.tracks.util.string.progressBar
 import moe.sdl.tracks.util.string.toStringOrDefault
@@ -56,7 +60,10 @@ import moe.sdl.yabapi.api.getBangumiDetailedBySeason
 import moe.sdl.yabapi.api.getBangumiInfo
 import moe.sdl.yabapi.api.getVideoInfo
 import moe.sdl.yabapi.data.GeneralCode
+import moe.sdl.yabapi.data.bangumi.BangumiDetailedResponse
+import moe.sdl.yabapi.data.stream.AbstractStreamData
 import moe.sdl.yabapi.data.stream.CodecId
+import moe.sdl.yabapi.data.stream.DashStream
 import moe.sdl.yabapi.data.stream.DashTrack
 import moe.sdl.yabapi.data.stream.QnQuality
 import moe.sdl.yabapi.data.stream.VideoStreamData
@@ -66,30 +73,25 @@ import moe.sdl.yabapi.util.encoding.bv
 import moe.sdl.yabapi.util.string.buildImageUrl
 import net.bramp.ffmpeg.FFmpeg
 import net.bramp.ffmpeg.FFmpegExecutor
-import net.bramp.ffmpeg.FFprobe
 import net.bramp.ffmpeg.builder.FFmpegOutputBuilder
 
 class Dig : CliktCommand(
-    name = "dig", help = """
-    下载命令
-    
-    url - 输入 B 站视频 链接|短链接|号码
-    """.trimIndent(), printHelpOnEmptyArgs = true
+    name = "dig", help = "下载命令".trimIndent(), printHelpOnEmptyArgs = true
 ) {
 
     init {
         val errorTip =
-            "尝试获取 ffmpeg/ffprobe 路径失败! 若未下载可前往 https://www.ffmpeg.org/ 下载, 已下载的可通过 'tracks config ffmpeg=path/to/file' 指定路径"
+            "尝试获取 ffmpeg 路径失败! 若未下载可前往 https://www.ffmpeg.org/ 下载, 已下载的可通过 'tracks config ffmpeg=path/to/file' 指定路径"
         if (tracksPreference.programDir.ffmpeg == null) {
             val path = getCliPath("ffmpeg") ?: errorExit { errorTip }
-            TermUi.echo("@|yellow 自动检测到 ffmpeg 路径:|@ $path".color)
+            TermUi.echo("@|yellow 自动检测到 FFmpeg 路径:|@ $path".color)
             tracksPreference.programDir.ffmpeg = path
         }
-        if (tracksPreference.programDir.ffprobe == null) {
-            val path = getCliPath("ffprobe") ?: errorExit { errorTip }
-            TermUi.echo("@|yellow 自动检测到 ffprobe 路径:|@ $path".color)
-            tracksPreference.programDir.ffprobe = path
-        }
+//        if (tracksPreference.programDir.ffprobe == null) {
+//            val path = getCliPath("ffprobe") ?: errorExit { errorTip }
+//            TermUi.echo("@|yellow 自动检测到 FFprobe 路径:|@ $path".color)
+//            tracksPreference.programDir.ffprobe = path
+//        }
     }
 
     private val url by argument("url", "B 站视频地址或 av BV ss ep md 等号码")
@@ -264,7 +266,8 @@ class Dig : CliktCommand(
         }
         when (info) {
             is VideoInfoGetResponse -> processVideo(info, this)
-            else -> errorExit { "暂不支持番剧解析！" }
+            is BangumiDetailedResponse -> processBangumi(info, trimmed, this)
+            else -> errorExit { "暂不支持该类解析！" }
         }
     }
 
@@ -289,25 +292,9 @@ class Dig : CliktCommand(
 
         // download cover
         if (downloads.contains(DownloadType.COVER)) {
-            run {
-                echo("@|magenta ==>|@ @|bold 下载封面...|@".color)
-                val dst = with(basicContext + info.data!!.placeHolderContext) {
-                    tracksPreference.fileDir.coverName.decodePlaceholder()
-                }.let { File("./$it") }.also {
-                    if (it.exists()) {
-                        echo("@|yellow 封面已存在, 跳过下载|@".color)
-                        echo()
-                        return@run
-                    }
-                }
-                client.client.downloadFile(
-                    url = buildImageUrl(info.data!!.cover, ImageFormat.PNG),
-                    dst = dst,
-                    getBuilder = { configureForBili() }
-                )
-                echo("@|yellow 封面下载成功!|@ 文件: ${dst.toPath().normalize().toFile().absolutePath}".color)
-                echo()
-            }
+            val context = basicContext + info.data!!.placeHolderContext
+            val dst = context.buildFile(tracksPreference.fileDir.coverName)
+            downloadCover(info.data!!.cover, dst)
         }
 
         var downloadedPart = 0
@@ -326,133 +313,72 @@ class Dig : CliktCommand(
             if (response.code != GeneralCode.SUCCESS) errorExit { "取流失败 ${response.code} - ${response.message}" }
             val data = response.data ?: errorExit { "取流 [response.data] 失败, 稍后重试看看" }
 
-            // for mux
-            var videoDst: File? = null
-            var audioDst: File? = null
+            downloadAndMux(
+                data, scope,
+                placeholderContext = basicContext + part.placeHolderContext + info.data!!.placeHolderContext,
+                keys = setOf(part.cid.toString())
+            )
+        }
+    }
 
-            // placeholder context for file name
-            val videoPlaceholderContext by lazy { basicContext + part.placeHolderContext + info.data!!.placeHolderContext }
-            var videoStreamContext: PlaceholderContext? = null
-            var audioStreamContext: PlaceholderContext? = null
+    private suspend fun processBangumi(info: BangumiDetailedResponse, id: String, scope: CoroutineScope) {
+        if (info.data == null) errorExit(withHelp = false) { "获取 PGC 信息失败, 可能是地区限制或网络波动: ${info.code} - ${info.message}" }
+        echo(info.data?.toAnsi())
+        val isEp = id.startsWith("ep")
+        val numId = id.drop(2).toIntOrNull() ?: errorExit(withHelp = false) { "EP 或 SS 号解析失败, id: $id" }
+        val bangumiContext = basicContext + info.data!!.placeHolderResult
+        val dst = bangumiContext.buildFile(tracksPreference.fileDir.coverName)
+        downloadCover(info.data!!.cover, dst)
+        if (isEp) {
+            val epInfo = info.data!!.episodes.firstOrNull { it.id == numId } ?: errorExit { "获取单集信息失败, 稍后重试看看" }
+            echo("@|bold 下载${info.data!!.type.toShow()}单集:|@ ${epInfo.toAnsi()}".color)
+            val result = client.fetchPgcDashTracks(numId).data ?: errorExit { "获取 ep$numId 视频流失败" }
+            downloadAndMux(
+                result, scope,
+                placeholderContext = bangumiContext + epInfo.placeHolderContext,
+                keys = setOf(epInfo.id.toString(), info.data?.seasonId.toString())
+            )
+        }
+    }
 
-            // Filter and download video
-            run video@{
-                if (DownloadType.VIDEO in downloads) {
-                    val tr = filterVideo(data) ?: run {
-                        echo("@|red 未发现视频流, 跳过视频下载 |@".color)
-                        return@video
-                    }
-                    val url = tr.baseUrl ?: errorExit { "获取视频链接失败..." }
-                    val size = client.client.getRemoteFileSize(url) { configureForBili() }
-                        .let { Size(it) }
-                    val bitrate = size.toStringOrDefault {
-                        it.toBandwidth(part.duration ?: return@toStringOrDefault "--").toShow()
-                    }
-                    echo(
-                        """
-                        @|magenta ==>|@ @|bold 视频流信息: 
-                         -> 画质 ${tr.id} | 编码 ${tr.codec} | 帧率 ${tr.frameRate} F
-                         -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color
-                    )
-                    videoStreamContext = tr.placeHolderContext
-                    videoDst =
-                        with(videoPlaceholderContext + videoStreamContext) {
-                            tracksPreference.fileDir.videoName.decodePlaceholder()
-                        }.let { File("./$it") }
-
-                    downloadStreamAndShow(videoDst!!, size, scope) {
-                        client.client.downloadStream(
-                            url, videoDst!!, partCount = 1, scope = scope,
-                            setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString(), size.bytes.toString()),
-                        )
-                    }
-                    echo()
-                }
+    /**
+     * @param final final artifact, will be automatically rename if having same name file
+     */
+    private suspend fun muxStream(audioDst: File?, videoDst: File?, final: File, scope: CoroutineScope) {
+        val artifact = if (final.exists()) {
+            final.duplicateRename().also {
+                echo("@|yellow 检测到文件重复, 更名为:|@ ${final.name}".color)
             }
-
-            // Filter and download audio
-            run audio@{
-                if (DownloadType.AUDIO in downloads) {
-                    val tr = filterAudio(data) ?: run {
-                        echo("@|red 未发现音频流, 跳过音频下载 |@".color)
-                        return@audio
-                    }
-                    val url = tr.baseUrl ?: errorExit { "获取音频链接失败" }
-                    val size = client.client.getRemoteFileSize(url) { configureForBili() }
-                        .let { Size(it) }
-                    val bitrate = size.toStringOrDefault {
-                        it.toBandwidth(part.duration ?: return@toStringOrDefault "--").toShow()
-                    }
-                    echo(
-                        """
-                        @|magenta ==>|@ @|bold 音频流信息: 
-                         -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color
-                    )
-                    audioStreamContext = tr.placeHolderContext
-                    val placeholderContext = videoPlaceholderContext + audioStreamContext
-                    audioDst =
-                        with(placeholderContext) {
-                            tracksPreference.fileDir.audioName.decodePlaceholder()
-                        }.let { File("./$it") }
-
-                    downloadStreamAndShow(audioDst!!, size, scope) {
-                        client.client.downloadStream(
-                            url, audioDst!!, partCount = 1, scope = scope,
-                            setOf(tr.id.toString(), tr.codec.toString(), part.cid.toString(), size.bytes.toString()),
-                        )
-                    }
-                    echo()
-                }
+        } else final
+        val ffmpegDir = tracksPreference.programDir.ffmpeg
+//        val ffprobeDir = tracksPreference.programDir.ffprobe
+        val ffmpeg = FFmpeg(ffmpegDir ?: errorExit { "FFmpeg 未配置! 通过 'tracks config ffmpeg=/path/to/file' 配置" })
+//        val ffprobe = FFprobe(ffprobeDir ?: errorExit { "FFprobe 未配置! 通过 'tracks config ffprobe=/path/to/file' 配置" })
+        if (!ffmpeg.isFFmpeg) errorExit { "路径错误, 非 FFmpeg 路径!" }
+        val builder = ffmpeg.builder()
+            .apply {
+                videoDst?.let { addInput(it.toNormalizedAbsPath()) }
+                audioDst?.let { addInput(it.toNormalizedAbsPath()) }
             }
-
-            // Mux video and audio
-            when {
-                skipMux -> echo("@|cyan,bold 根据选项跳过混流...|@".color)
-                videoDst?.exists() == true || audioDst?.exists() == true -> {
-                    echo("@|magenta ==>|@ @|bold 开始混流...|@".color)
-                    var final = with(videoPlaceholderContext + videoStreamContext + audioStreamContext) {
-                        tracksPreference.fileDir.finalArtifact.decodePlaceholder()
-                    }.let { File("./$it") }
-                    if (final.exists()) {
-                        final = final.duplicateRename()
-                        echo("@|yellow 检测到文件重复, 更名为:|@ ${final.name}".color)
-                    }
-                    val ffmpegDir = tracksPreference.programDir.ffmpeg
-                    val ffprobeDir = tracksPreference.programDir.ffprobe
-                    val ffmpeg =
-                        FFmpeg(ffmpegDir ?: errorExit { "FFmpeg 未配置! 通过 'tracks config ffmpeg=/path/to/file' 配置" })
-                    val ffprobe =
-                        FFprobe(
-                            ffprobeDir ?: errorExit { "FFprobe 未配置! 通过 'tracks config ffprobe=/path/to/file' 配置" })
-                    if (!ffmpeg.isFFmpeg) errorExit { "路径错误, 非 FFmpeg 路径!" }
-                    val builder = ffmpeg.builder()
-                        .apply {
-                            videoDst?.let { addInput(it.toNormalizedAbsPath()) }
-                            audioDst?.let { addInput(it.toNormalizedAbsPath()) }
-                        }
-                        .addOutput(
-                            FFmpegOutputBuilder()
-                                .setVideoCodec("copy")
-                                .setAudioCodec("copy")
-                                .setFormat("mp4")
-                                .setFilename(final.toNormalizedAbsPath())
-                        )
-                    val job = scope.launch {
-                        FFmpegExecutor(ffmpeg, ffprobe)
-                            .createJob(builder).run()
-                    }
-                    echo("混流中...")
-                    job.join()
-                    job.invokeOnCompletion {
-                        echo("@|yellow 混流完毕! |@ 文件存放于: ${final.toNormalizedAbsPath()}".color)
-                        if (onlyArtifact) {
-                            echo("清除中间文件...")
-                            audioDst?.apply { if (exists()) delete() }
-                            videoDst?.apply { if (exists()) delete() }
-                        }
-                    }
-                }
-                else -> echo("@|cyan,bold 无视频或音频, 跳过混流...|@".color)
+            .addOutput(
+                FFmpegOutputBuilder()
+                    .setVideoCodec("copy")
+                    .setAudioCodec("copy")
+                    .setFormat("mp4")
+                    .setFilename(artifact.toNormalizedAbsPath())
+            )
+        val job = scope.launch {
+            FFmpegExecutor(ffmpeg)
+                .createJob(builder).run()
+        }
+        echo("混流中...")
+        job.join()
+        job.invokeOnCompletion {
+            echo("@|yellow 混流完毕! |@ 文件存放于: ${artifact.toNormalizedAbsPath()}".color)
+            if (onlyArtifact) {
+                echo("清除中间文件...")
+                audioDst?.apply { if (exists()) delete() }
+                videoDst?.apply { if (exists()) delete() }
             }
         }
     }
@@ -469,7 +395,7 @@ class Dig : CliktCommand(
         File(parent, "$name.$extension").duplicateRename()
     } else this
 
-    private fun filterVideo(data: VideoStreamData): DashTrack? {
+    private fun filterVideo(data: AbstractStreamData): DashTrack? {
         if (data.dash?.videos == null) errorExit { "获取 Dash 视频流 [data.dash.videos] 失败, 稍后重试看看" }
         Log.debug { "当前视频可用画质: [${data.acceptDescription.joinToString()}]" }
         val videos = data.dash!!.videos.asSequence()
@@ -477,11 +403,15 @@ class Dig : CliktCommand(
         // quality filter
         val qualityList = videos.mapNotNull { it.id }
         val filtered = qualityList.filterByOpt(videoQuality) ?: run {
-            if (videoQuality in data.acceptQuality) infoExit { "@|red,bold 匹配画质 [$videoQuality] 需要大会员, 停止下载|@".color }
+            if (data is VideoStreamData) {
+                if (videoQuality in data.acceptQuality) infoExit { "@|red,bold 匹配画质 [$videoQuality] 需要大会员, 停止下载|@".color }
+            }
             infoExit { "@|red 无匹配画质 [$videoQuality], 停止下载|@".color }
         }
-        if (videoQuality in data.acceptQuality && filtered != videoQuality)
-            echo("@|yellow 匹配画质 [$videoQuality] 需要大会员, 回退为 [$filtered]|@".color)
+        if (data is VideoStreamData) {
+            if (videoQuality in data.acceptQuality && filtered != videoQuality)
+                echo("@|yellow 匹配画质 [$videoQuality] 需要大会员, 回退为 [$filtered]|@".color)
+        }
 
         // codec filter
         val track = videos.filter { it.id == filtered }.firstOrNull {
@@ -494,11 +424,11 @@ class Dig : CliktCommand(
         return track
     }
 
-    private fun filterAudio(data: VideoStreamData): DashTrack? {
-        if (data.dash?.audios == null) errorExit { "获取 Dash 音频流失败, 稍后重试看看" }
+    private fun filterAudio(dash: DashStream): DashTrack? {
+//        if (dash?.audios == null) errorExit { "获取 Dash 音频流失败, 稍后重试看看" }
         val audios = buildList {
-            addAll(data.dash?.audios!!)
-            data.dash?.dolby?.audio?.forEach { add(it) }
+            addAll(dash.audios)
+            dash.dolby?.audio?.forEach { add(it) }
         }
         val target = audios.mapNotNull { it.id }.asSequence().filterByOpt(audioQuality)
         return audios.firstOrNull { it.id == target }
@@ -515,6 +445,130 @@ class Dig : CliktCommand(
             QualityStrategy.EXACT -> it.firstOrNull()
             QualityStrategy.NEAR_UP -> it.minOrNull() ?: this.maxOrNull()
             QualityStrategy.NEAR_DOWN -> it.maxOrNull() ?: this.maxOrNull()
+        }
+    }
+
+    /**
+     * @param url will be converted to PNG format request using [buildImageUrl]
+     * @param onDuplicate If [dst] are not file downloaded before, and exists, aka, name shadowed,
+     * this func will be invoked. Func should return [Boolean] to control flow, `true` for *replace the origin file*;
+     * `false` for return func.
+     */
+    private suspend fun downloadCover(
+        url: String?,
+        dst: File,
+        onDuplicate: () -> Boolean = {
+            echo("@|yellow 封面已存在, 跳过下载|@".color)
+            echo()
+            false
+        }
+    ) {
+        if (url == null) {
+            echo("@|yellow 获取封面链接失败, 跳过封面下载...|@".color)
+            return
+        }
+        echo("@|magenta ==>|@ @|bold 下载封面...|@".color)
+        if (dst.exists()) {
+            if (!onDuplicate()) return
+            dst.delete()
+        }
+        client.client.downloadFile(
+            url = buildImageUrl(url, ImageFormat.PNG),
+            dst = dst,
+            getBuilder = { configureForBili() }
+        )
+        echo("@|yellow 封面下载成功!|@ 文件: ${dst.toPath().normalize().toFile().absolutePath}".color)
+        echo()
+    }
+
+    private suspend fun downloadAndMux(
+        data: AbstractStreamData,
+        scope: CoroutineScope,
+        placeholderContext: PlaceholderContext,
+        keys: Set<String>,
+    ) {
+        // for mux
+        var videoDst: File? = null
+        var audioDst: File? = null
+        val duration: Long? = data.dash?.duration?.toLong()
+
+        // placeholder context for file name
+        var videoStreamContext: PlaceholderContext? = null
+        var audioStreamContext: PlaceholderContext? = null
+
+        suspend fun downloadStream(dst: File, track: DashTrack, url: String, size: Size) =
+            downloadStreamAndShow(dst, size, scope) {
+                client.client.downloadStream(
+                    url, dst, partCount = 1, scope = scope,
+                    setOf(track.id.toString(), track.codec.toString(), size.bytes.toString()) + keys,
+                )
+            }
+
+        // Filter and download video
+        run video@{
+            if (DownloadType.VIDEO in downloads) {
+                val tr = filterVideo(data) ?: run {
+                    echo("@|red 未发现视频流, 跳过视频下载 |@".color)
+                    return@video
+                }
+                val trackUrl = tr.baseUrl ?: errorExit { "获取视频链接失败..." }
+                val size = client.client.getRemoteFileSize(trackUrl) { configureForBili() }
+                    .let { Size(it) }
+                val bitrate = size.toStringOrDefault {
+                    it.toBandwidth(duration ?: return@toStringOrDefault "--").toShow()
+                }
+                echo(
+                    """
+                        @|magenta ==>|@ @|bold 视频流信息: 
+                         -> 画质 ${tr.id} | 编码 ${tr.codec} | 帧率 ${tr.frameRate} F
+                         -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color
+                )
+                videoStreamContext = tr.placeHolderContext
+                val context = placeholderContext + videoStreamContext
+                videoDst = context.buildFile(tracksPreference.fileDir.videoName)
+
+                downloadStream(videoDst!!, tr, trackUrl, size)
+                echo()
+            }
+        }
+
+        // Filter and download audio
+        run audio@{
+            if (DownloadType.AUDIO in downloads) {
+                fun failedTip() = echo("@|red 未发现音频流, 跳过音频下载 |@".color)
+                val tr = filterAudio(data.dash ?: run { failedTip(); return@audio })
+                    ?: run { failedTip(); return@audio }
+                val trackUrl = tr.baseUrl ?: errorExit { "获取音频链接失败" }
+                val size = client.client.getRemoteFileSize(trackUrl) { configureForBili() }
+                    .let { Size(it) }
+                val bitrate = size.toStringOrDefault {
+                    it.toBandwidth(duration ?: return@toStringOrDefault "--").toShow()
+                }
+                echo(
+                    """
+                        @|magenta ==>|@ @|bold 音频流信息: 
+                         -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color
+                )
+                audioStreamContext = tr.placeHolderContext
+                val context = placeholderContext + audioStreamContext
+                audioDst = context.buildFile(tracksPreference.fileDir.audioName)
+
+                downloadStream(audioDst!!, tr, trackUrl, size)
+                echo()
+            }
+        }
+
+        // Mux video and audio
+        when {
+            skipMux -> echo("@|cyan,bold 根据选项跳过混流...|@".color)
+            videoDst?.exists() == true || audioDst?.exists() == true -> {
+                echo("@|magenta ==>|@ @|bold 开始混流...|@".color)
+                val context = placeholderContext + videoStreamContext + audioStreamContext
+                val final = context.buildFile(tracksPreference.fileDir.finalArtifact)
+
+                muxStream(audioDst, videoDst, final, scope)
+            }
+            else -> echo("@|cyan,bold 无视频或音频, 跳过混流...|@".color)
         }
     }
 
