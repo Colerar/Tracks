@@ -13,6 +13,10 @@ https://user-images.githubusercontent.com/62297254/154002139-1ac70e9f-0d05-4e9e-
 
 </details>
 
+## 安装
+
+See: [INSTALL.md](INSTALL.md)
+
 ## 功能列表 & TODO
 
 - 封装
