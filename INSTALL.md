@@ -84,7 +84,7 @@
 
 <img width="60%" alt="image" src="https://user-images.githubusercontent.com/62297254/154430989-7d4e7d44-ee11-43c3-84fd-d288a5ea52bb.png">
 
-可自行通过 `Windows Terminal 美化` 等关键词, 自行配置.
+可搜索 `Windows Terminal 美化` 等关键词, 自行配置.
 
 ## 运行 Tracks
 
