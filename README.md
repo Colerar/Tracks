@@ -1,6 +1,6 @@
 # Tracks
 
-![tracks-version](https://img.shields.io/badge/version-1.0.0-orange?style=for-the-badge)
+[Releases](https://github.com/Colerar/Tracks/releases)
 
 Kotlin 编写的 B 站视频下载器
 
