@@ -366,7 +366,7 @@ class Dig : CliktCommand(
                 echo("@|yellow 无法获取本集 epid, 跳过下载|@".color)
                 return@forEachIndexed
             }).data ?: run {
-                echo("@|获取 ep$numId 视频流失败, 跳过下载|@".color)
+                echo("@|red 获取 ep$numId 视频流失败, 跳过下载|@".color)
                 return@forEachIndexed
             }
             downloadAndMux(

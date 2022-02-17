@@ -37,7 +37,7 @@ fun CoroutineScope.progressBar(
         val avg = if (delta > 0) Size(cur.value).toBandwidthMs(delta).toBytesBandwidth() else BytesBandwidth(0)
         str += "avg: " + avg.toShow().padEnd(10, ' ')
         val etaSeconds =  if (avg.bytes > 0) (total - cur.value) / avg.bytes else 0
-        str += "eta: " + etaSeconds.toInt().secondsToDuration().padEnd(5, ' ')
+        str += " eta: " + etaSeconds.toInt().secondsToDuration().padEnd(5, ' ')
         print(StringBuilder("\u0008").repeat(lastLen))
         print(str)
         lastLen = str.length

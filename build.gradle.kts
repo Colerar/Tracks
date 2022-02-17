@@ -46,7 +46,7 @@ dependencies {
     // FFmpeg cli wrapper
     implementation("net.bramp.ffmpeg:ffmpeg:0.6.2")
     // for turning off noisy log
-    implementation("org.slf4j:slf4j-simple:1.7.35")
+    implementation("org.slf4j:slf4j-simple:1.7.36")
 }
 
 tasks.test {

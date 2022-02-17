@@ -1,5 +1,6 @@
 package moe.sdl.tracks.config
 
+import io.ktor.client.engine.ProxyType
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
@@ -17,6 +18,7 @@ internal class TracksPreference(
     val fileDir: Path = Path(),
     val programDir: Program = Program(),
     val show: Show = Show(),
+    val proxy: Proxy = Proxy(),
     var first: Boolean = true,
 ) : Preference() {
     @Transient
@@ -39,5 +41,12 @@ internal class TracksPreference(
     @Serializable
     class Show(
         val progressInterval: Long = 100,
+    )
+
+    @Serializable
+    class Proxy(
+        var enable: Boolean = false,
+        val type: ProxyType = ProxyType.HTTP,
+        var url: String? = null,
     )
 }

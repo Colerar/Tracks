@@ -43,7 +43,16 @@ class Config : CliktCommand(
 
     override fun run() {
         expr.asSequence().forEach { (k, v) ->
-            val operation = keyMap[k.lowercase()] ?: run {
+            val lowercase = k.lowercase()
+            if (lowercase == "list") {
+                echo("@|bold 当前可用配置:|@".color)
+                keyMap.forEach { (t, u) -> 
+                    echo()
+                    echo("${t.padEnd(20, ' ')} - ${u.desc}")
+                }
+                return
+            }
+            val operation = keyMap[lowercase] ?: run {
                 echo("无匹配 [$k] 的设置")
                 return@forEach
             }
@@ -60,6 +69,7 @@ class Config : CliktCommand(
 private val keyMap by lazy {
     mapOf(
         "ffmpeg" to ArgumentOperation(
+            desc = "FFmpeg 路径",
             onQuery = { TermUi.echo("FFmpeg 路径目前为 ${tracksPreference.programDir.ffmpeg}") },
             onSet = {
                 val abs = File(it).toNormalizedAbsPath()
@@ -79,10 +89,37 @@ private val keyMap by lazy {
 //                } else TermUi.echo("@|red 输入路径非 FFprobe 路径: $abs|@".color)
 //            },
 //        )
+        "proxy-enable" to ArgumentOperation(
+            desc = "是否开启代理, 仅支持 http",
+            onQuery = {
+                TermUi.echo("当前代理状态 ${
+                    if (tracksPreference.proxy.enable) "@|yellow,bold 开启|@".color.toString() else "关闭"
+                }")
+            },
+            onSet = {
+                val l = it.lowercase() // lowercase
+                val boolean = when {
+                    l.startsWith("t") || l.toBooleanStrictOrNull() ==true || (it == "1") -> true
+                    l.startsWith("f") || l.toBooleanStrictOrNull() == true || (it == "0") -> false
+                    else -> throw UsageError("输入错误! 请输入 true/false!")
+                }
+                tracksPreference.proxy.enable = boolean
+                TermUi.echo(if (boolean) "代理已开启!" else "代理已关闭！")
+            }
+        ),
+        "proxy-url" to ArgumentOperation(
+            desc = "http 代理地址",
+            onQuery = { TermUi.echo("当前代理地址: ${tracksPreference.proxy.url}") },
+            onSet = {
+                tracksPreference.proxy.url = it
+                TermUi.echo("代理地址已设置为: $it")
+            }
+        )
     )
 }
 
 private class ArgumentOperation(
+    val desc: String,
     val onQuery: CliktCommand.() -> Unit,
     val onSet: CliktCommand.(value: String) -> Unit,
 )
