@@ -13,7 +13,7 @@ fun CliktCommand.errorExit(code: Int = 1, withHelp: Boolean = true, lazyMessage:
     throw ProgramResult(code)
 }
 
-fun CliktCommand.infoExit(code: Int = 0, lazyMessage: () -> Any?): Nothing {
+fun infoExit(code: Int = 0, lazyMessage: () -> Any?): Nothing {
     echo(lazyMessage().toString())
     throw ProgramResult(code)
 }

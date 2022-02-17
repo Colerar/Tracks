@@ -61,7 +61,7 @@ import moe.sdl.tracks.util.string.toStringOrDefault
 import moe.sdl.tracks.util.string.trimBiliNumber
 import moe.sdl.yabapi.api.getBangumiDetailedByEp
 import moe.sdl.yabapi.api.getBangumiDetailedBySeason
-import moe.sdl.yabapi.api.getBangumiInfo
+import moe.sdl.yabapi.api.getBangumiReviewInfo
 import moe.sdl.yabapi.api.getVideoInfo
 import moe.sdl.yabapi.data.GeneralCode
 import moe.sdl.yabapi.data.bangumi.BangumiDetailedResponse
@@ -127,7 +127,7 @@ class Dig : CliktCommand(
         "-only-cover" to DownloadType.COVER,
     )
 
-    private val multipart by option("-multipart", "-mtn", help = "下载分块数, 默认不分块")
+    private val multipart by option("-multipart", "-mt", help = "下载分块数, 默认不分块")
         .int().default(1)
         .validate {
             if (it !in 1..16) throw UsageError("分块数 n 应该满足 1 ≤ n ≤ 16 ", this, context)
@@ -258,17 +258,19 @@ class Dig : CliktCommand(
         }
 
     override fun run(): Unit = runBlocking {
-        val trimmed = trimBiliNumber(url) ?: errorExit { "输入有误！请检查后重试" }
+        var trimmed = trimBiliNumber(url) ?: errorExit { "输入有误！请检查后重试" }
         echo("获取 @|yellow,bold [$trimmed]|@ 视频信息...".color)
+        if (trimmed.startsWith("md", ignoreCase = true)) {
+            val info = client.getBangumiReviewInfo(mediaId = trimmed.lowercase().removePrefix("md").toIntOrNull()
+                ?: errorExit { "md 号输入有误！请检查后重试" })
+            trimmed = "ss" + info.result?.media?.seasonId
+        }
         val info: Any = when {
             trimmed.startsWith("av", ignoreCase = true) -> client.getVideoInfo(trimmed.bv)
             trimmed.startsWith("bv", ignoreCase = true) -> client.getVideoInfo(trimmed)
             trimmed.startsWith("ss", ignoreCase = true) ->
                 client.getBangumiDetailedBySeason(seasonId = trimmed.lowercase().removePrefix("ss").toIntOrNull()
                     ?: errorExit { "ss 号输入有误！请检查后重试" })
-            trimmed.startsWith("md", ignoreCase = true) ->
-                client.getBangumiInfo(mediaId = trimmed.lowercase().removePrefix("md").toIntOrNull()
-                    ?: errorExit { "md 号输入有误！请检查后重试" })
             trimmed.startsWith("ep", ignoreCase = true) ->
                 client.getBangumiDetailedByEp(epId = trimmed.lowercase().removePrefix("ep").toIntOrNull()
                     ?: errorExit { "ep 号输入有误！请检查后重试" })
@@ -277,7 +279,7 @@ class Dig : CliktCommand(
         when (info) {
             is VideoInfoGetResponse -> processVideo(info, this)
             is BangumiDetailedResponse -> processBangumi(info, trimmed, this)
-            else -> errorExit { "暂不支持该类解析！" }
+            else -> infoExit { "暂不支持该类解析！" }
         }
     }
 
@@ -662,11 +664,14 @@ class Dig : CliktCommand(
                 val countJob = scope.launch {
                     while (isActive) {
                         cur.getAndUpdate { _ ->
-                            filesRef.value.filter {
-                                it.exists()
-                            }.fold(0L) { acc, file ->
-                                acc + file.length()
-                            }
+                            max(
+                                filesRef.value.filter {
+                                    it.exists()
+                                }.fold(0L) { acc, file ->
+                                    acc + file.length()
+                                },
+                                dst.length()
+                            )
                         }
                         delay(100)
                     }
