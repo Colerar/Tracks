@@ -29,6 +29,7 @@ internal class TracksPreference(
         val coverName: String = "%date%-%video:title%.png",
         val videoName: String = "%date%-%video:title%-%part:num%.m4v",
         val audioName: String = "%date%-%video:title%-%part:num%.m4a",
+        val subtitleName: String = "%date%-%video:title%-%part:num%.%subtitle:lang%.srt",
         val finalArtifact: String = "%date%-%video:title%-%part:num%.mp4",
     )
 

@@ -49,6 +49,7 @@ import moe.sdl.tracks.util.infoExit
 import moe.sdl.tracks.util.io.configureForBili
 import moe.sdl.tracks.util.io.downloadFile
 import moe.sdl.tracks.util.io.downloadResumable
+import moe.sdl.tracks.util.io.ensureCreate
 import moe.sdl.tracks.util.io.fetchPgcDashTracks
 import moe.sdl.tracks.util.io.fetchVideoDashTracks
 import moe.sdl.tracks.util.io.getRemoteFileSize
@@ -62,6 +63,7 @@ import moe.sdl.tracks.util.string.trimBiliNumber
 import moe.sdl.yabapi.api.getBangumiDetailedByEp
 import moe.sdl.yabapi.api.getBangumiDetailedBySeason
 import moe.sdl.yabapi.api.getBangumiReviewInfo
+import moe.sdl.yabapi.api.getSubtitleContent
 import moe.sdl.yabapi.api.getVideoInfo
 import moe.sdl.yabapi.data.GeneralCode
 import moe.sdl.yabapi.data.bangumi.BangumiDetailedResponse
@@ -71,13 +73,17 @@ import moe.sdl.yabapi.data.stream.DashStream
 import moe.sdl.yabapi.data.stream.DashTrack
 import moe.sdl.yabapi.data.stream.QnQuality
 import moe.sdl.yabapi.data.stream.VideoStreamData
+import moe.sdl.yabapi.data.video.SubtitleTrack
 import moe.sdl.yabapi.data.video.VideoInfoGetResponse
+import moe.sdl.yabapi.data.video.encodeToSrt
 import moe.sdl.yabapi.enums.ImageFormat
 import moe.sdl.yabapi.util.encoding.bv
 import moe.sdl.yabapi.util.string.buildImageUrl
 import net.bramp.ffmpeg.FFmpeg
 import net.bramp.ffmpeg.FFmpegExecutor
 import net.bramp.ffmpeg.builder.FFmpegOutputBuilder
+import okio.buffer
+import okio.sink
 
 class Dig : CliktCommand(
     name = "dig", help = "下载命令".trimIndent(), printHelpOnEmptyArgs = true
@@ -218,6 +224,27 @@ class Dig : CliktCommand(
         }
     }
 
+    private val subtitleLanguages by option(
+        "-sub-lang", "-sl",
+        help = "要下载的字幕的语言代码(如 zh-hant, zh-hans), 默认中文, 可指定多个, all 为全部"
+    ).convert { str ->
+        str.split(Regex("[，,]"))
+            .filter { it.isNotEmpty() && it.isNotBlank() }
+    }.default(listOf("zh-hans", "zh-hant", "中文"))
+
+    private val subtitleLooseMode by option(
+        "-sub-loose",
+        "-sub-loose-match",
+        "-slm",
+        help = "是否开启宽松模式, 不仅将匹配语言代码, 同时也匹配语言名称, 并且仅要求, 默认开启"
+    )
+        .flag("-sub-strict", "-ss", default = true)
+
+    private val subtitleWildMatch by option(
+        "-sub-weird", "-sw",
+        help = "字幕贪婪 / 回退匹配模式, 默认回退, 前者将根据指定的顺序选定, 至多选择一个; 后者将下载所有匹配的字幕"
+    ).flag("-sub-fallback", "-sf", default = false)
+
     private val onlyArtifact by option("-clean-up", "-only-artifact", "-oa", help = "是否只保留混流后的成品, 默认开启")
         .flag("-keep-material", "-km", default = true)
 
@@ -326,7 +353,7 @@ class Dig : CliktCommand(
             val data = response.data ?: errorExit { "取流 [response.data] 失败, 稍后重试看看" }
 
             downloadAndMux(
-                data, scope,
+                data, info.data!!.aid, part.cid!!, scope,
                 placeholderContext = basicContext + part.placeHolderContext + info.data!!.placeHolderContext,
                 keys = setOf(part.cid.toString())
             )
@@ -370,7 +397,10 @@ class Dig : CliktCommand(
                 return@forEachIndexed
             }
             downloadAndMux(
-                result, scope,
+                result,
+                episode.aid ?: errorExit { "获取番剧 aid 失败, 停止下载" },
+                episode.cid ?: errorExit { "获取番剧 cid 失败, 停止下载" },
+                scope,
                 placeholderContext = bangumiContext + episode.placeHolderContext,
                 keys = setOf(episode.id.toString(), info.data?.seasonId.toString())
             )
@@ -520,6 +550,8 @@ class Dig : CliktCommand(
 
     private suspend fun downloadAndMux(
         data: AbstractStreamData,
+        aid: Int,
+        cid: Int,
         scope: CoroutineScope,
         placeholderContext: PlaceholderContext,
         keys: Set<String>,
@@ -540,6 +572,54 @@ class Dig : CliktCommand(
                     url, dst, partCount = multipart.toLong(), scope = scope,
                     filesRef, setOf(track.id.toString(), track.codec.toString(), size.bytes.toString()) + keys,
                 )
+            }
+        }
+
+        run subtitle@{
+            if (DownloadType.SUBTITLE in downloads) {
+                echo()
+                echo("@|magenta ==>|@ @|bold 下载字幕中...|@".color)
+                val subtitles = client.getVideoInfo(aid, cid).data?.subtitle?.list
+                if (subtitles.isNullOrEmpty()) {
+                    echo("@|yellow 无可用字幕, 跳过下载...|@".color)
+                    return@subtitle
+                }
+                val langs = subtitles.joinToString { "${it.languageName}[${it.language}]" }
+                echo("可用字幕: $langs")
+
+                fun String?.contain(other: String) = this?.contains(other, true) == true
+                val tracks = subtitleLanguages.fold(mutableListOf<SubtitleTrack>()) { acc, str ->
+                    subtitles.filter { tr ->
+                        when {
+                            subtitleLooseMode && (tr.languageName.contain(str) || tr.language.contain(str)) -> true
+                            tr.language?.equals(str, true) == true -> true
+                            else -> false
+                        }
+                    }.let { acc.addAll(it) }
+                    acc
+                }.let { list ->
+                    if (!subtitleWildMatch) {
+                        list.firstOrNull()?.let { listOf(it) } ?: emptyList()
+                    } else list
+                }
+                if (tracks.isEmpty()) echo("@|yellow 无匹配字幕, 跳过下载 |@".color)
+                tracks.forEachIndexed { idx, it ->
+                    if (idx >= 1) echo()
+                    echo("@|bold 正在下载|@ ${it.languageName}[${it.language}]".color)
+                    val fileDst = with(placeholderContext + it.placeHolderContext) {
+                        buildFile(tracksPreference.fileDir.subtitleName)
+                    }.duplicateRename()
+                    val srt = client.getSubtitleContent(it.subtitleUrl ?: run {
+                        echo("@|red 无法获取当前字幕地址, 跳过下载|@".color)
+                        return@forEachIndexed
+                    }).body.encodeToSrt()
+                    fileDst.ensureCreate()
+                    fileDst.sink().use { sink ->
+                        sink.buffer().writeString(srt, Charsets.UTF_8)
+                    }
+                    echo("@|yellow 下载完成! 文件保存至:|@ ${fileDst.toNormalizedAbsPath()}".color)
+                }
+                echo()
             }
         }
 

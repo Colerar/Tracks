@@ -13,4 +13,9 @@ class DownloadTest {
     fun lowSizeTest() {
         Dig().parse("https://www.bilibili.com/video/av170001".split(' '))
     }
+
+    @Test
+    fun subTitleDownload() {
+        Dig().parse("av60977932 -sl en-US,zh-Hans -sw".split(' '))
+    }
 }

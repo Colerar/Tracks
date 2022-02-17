@@ -11,6 +11,7 @@ import moe.sdl.tracks.util.string.toStringOrDefault
 import moe.sdl.yabapi.data.bangumi.BangumiDetailed
 import moe.sdl.yabapi.data.bangumi.BangumiEpisode
 import moe.sdl.yabapi.data.stream.DashTrack
+import moe.sdl.yabapi.data.video.SubtitleTrack
 import moe.sdl.yabapi.data.video.VideoInfo
 import moe.sdl.yabapi.data.video.VideoPart
 
@@ -96,4 +97,10 @@ val DashTrack.placeHolderContext: PlaceholderContext
         "track:codec" to { codec },
         "track:quality" to { id },
         "track:framerate" to { frameRate }
+    )
+
+val SubtitleTrack.placeHolderContext: PlaceholderContext
+    get() = PlaceholderContext(
+        "subtitle:lang" to { language },
+        "subtitle:langName" to { languageName },
     )
