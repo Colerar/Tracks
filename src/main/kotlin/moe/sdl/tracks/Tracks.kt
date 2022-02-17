@@ -17,7 +17,7 @@ import moe.sdl.tracks.util.osType
 import org.fusesource.jansi.AnsiConsole
 
 fun main(args: Array<String>) {
-    if (tracksPreference.first && osType == OsType.WINDOWS)
+    if (tracksPreference.first && osType == OsType.WINDOWS) {
         echo(
             """ 
             @|bold 检测到您是首次运行本程序, 并且当前运行环境是 Windows|@
@@ -25,6 +25,8 @@ fun main(args: Array<String>) {
             @|bold 推荐使用 Windows Terminal 等现代终端, 下载地址: https://aka.ms/terminal|@
             """.trimIndent().color
         )
+        tracksPreference.first = false
+    }
     if (tracksPreference.enableColor) AnsiConsole.systemInstall()
     System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, if (debug) "DEBUG" else "ERROR")
     try {
@@ -36,7 +38,6 @@ fun main(args: Array<String>) {
         echo(e)
         Log.debug(e) { "Stacktrace:" }
     }
-    tracksPreference.first = false
 }
 
 class MainCommand : CliktCommand(
