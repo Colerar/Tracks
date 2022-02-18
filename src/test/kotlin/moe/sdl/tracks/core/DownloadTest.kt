@@ -1,6 +1,7 @@
 package moe.sdl.tracks.core
 
 import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.http.HttpHeaders
 import java.io.File
@@ -12,6 +13,7 @@ import moe.sdl.tracks.util.io.ensureCreate
 import moe.sdl.tracks.util.io.fetchPgcDashTracks
 import moe.sdl.tracks.util.io.fetchVideoDashTracks
 import moe.sdl.tracks.util.io.filterDashTracks
+import moe.sdl.tracks.util.readSidx
 import moe.sdl.yabapi.api.getVideoParts
 import moe.sdl.yabapi.data.stream.CodecId
 import moe.sdl.yabapi.data.stream.QnQuality
@@ -22,6 +24,22 @@ class DownloadTest {
     private inline fun HttpRequestBuilder.configureForBili(extra: HttpRequestBuilder.() -> Unit = {}) {
         this.extra()
         headers { append(HttpHeaders.Referrer, "https://www.bilibili.com") }
+    }
+
+    @Test
+    fun sidxParseTest(): Unit = runBlocking {
+        val bid = "BV1wF411W7WM"
+        val cid = client.getVideoParts(bid).data.first().cid!!
+        val tr = client.fetchVideoDashTracks(bid, cid).data!!
+            .filterDashTracks(CodecId.AVC, QnQuality.V360P)!!
+        val idxRange = tr.segmentBase!!.indexRange
+        val bytes = client.client.get<ByteArray>(tr.baseUrl!!) {
+            headers {
+                append(HttpHeaders.Range, "bytes=${idxRange!!}")
+                configureForBili()
+            }
+        }
+        readSidx(bytes)
     }
 
     @Test
