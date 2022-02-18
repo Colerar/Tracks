@@ -4,6 +4,7 @@ import java.io.File
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import moe.sdl.tracks.external.zhconvert.Converter
 import moe.sdl.tracks.model.toShow
 import moe.sdl.tracks.util.string.secondsToDuration
 import moe.sdl.tracks.util.string.toAbsTime
@@ -102,5 +103,11 @@ val DashTrack.placeHolderContext: PlaceholderContext
 val SubtitleTrack.placeHolderContext: PlaceholderContext
     get() = PlaceholderContext(
         "subtitle:lang" to { language },
+        "subtitle:langName" to { languageName },
+    )
+
+val Converter.placeHolderContext: PlaceholderContext
+    get() = PlaceholderContext(
+        "subtitle:lang" to { languageCode },
         "subtitle:langName" to { languageName },
     )

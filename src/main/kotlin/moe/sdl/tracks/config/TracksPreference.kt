@@ -20,6 +20,7 @@ internal class TracksPreference(
     val show: Show = Show(),
     val proxy: Proxy = Proxy(),
     var first: Boolean = true,
+    var zhConvertAlert: Boolean = true,
 ) : Preference() {
     @Transient
     override val file: File = File(TRACKS_CONFIG_FILE)

@@ -34,6 +34,8 @@ import moe.sdl.tracks.enums.DownloadType
 import moe.sdl.tracks.enums.QualityStrategy
 import moe.sdl.tracks.enums.audioQualityMap
 import moe.sdl.tracks.enums.videoQualityMap
+import moe.sdl.tracks.external.zhconvert.Converter
+import moe.sdl.tracks.external.zhconvert.requestZhConvert
 import moe.sdl.tracks.model.VideoResult
 import moe.sdl.tracks.model.printConsole
 import moe.sdl.tracks.model.toAnsi
@@ -224,13 +226,14 @@ class Dig : CliktCommand(
         }
     }
 
+
+    private fun extractLangCode(str: String) = str.split(Regex("[，,]"))
+        .filter { it.isNotEmpty() && it.isNotBlank() }
+
     private val subtitleLanguages by option(
         "-sub-lang", "-sl",
         help = "要下载的字幕的语言代码(如 zh-hant, zh-hans), 默认中文, 可指定多个, all 为全部"
-    ).convert { str ->
-        str.split(Regex("[，,]"))
-            .filter { it.isNotEmpty() && it.isNotBlank() }
-    }.default(listOf("zh-hans", "zh-hant", "中文"))
+    ).convert { extractLangCode(it) }.default(listOf("zh-hans", "zh-hant", "中文"))
 
     private val subtitleLooseMode by option(
         "-sub-loose", "-sub-loose-match", "-slm",
@@ -241,6 +244,22 @@ class Dig : CliktCommand(
         "-sub-weird", "-sw",
         help = "字幕贪婪 / 回退匹配模式, 默认回退, 前者将根据指定的顺序选定, 至多选择一个; 后者将下载所有匹配的字幕"
     ).flag("-sub-fallback", "-sf", default = false)
+
+    private val zhConvert by option(
+        "-zhconvert-enable", "-ze", help = "是否使用繁化姬转换字词, 默认关闭"
+    ).flag("-zhconvert-disable", "-zd", default = false)
+
+    private val zhConvertTo by option(
+        "-zhconvert-to", "-zt",
+        help = "使用繁化姬转换的目标, 默认简体化, 详见: https://zhconvert.org/ , 可用 [${Converter.values().joinToString { it.code }}]"
+    ).convert {
+        Converter(it) ?: throw UsageError("转换目标 [$it] 输入错误! 可用选项: [${Converter.values().joinToString { it.code }}]")
+    }.default(Converter.SIMPLIFIED)
+
+    private val zhConvertKeepOrigin by option(
+        "-zhconvert-keep-origin", "-zhconvert-keep", "-zk",
+        help = "是否保留转换前文本, 默认开启"
+    ).flag("-zhconvert-only-artifact", "-zhconvert-clean", "-zoa", "-zc", default = true)
 
     private val onlyArtifact by option("-clean-up", "-only-artifact", "-oa", help = "是否只保留混流后的成品, 默认开启")
         .flag("-keep-material", "-km", default = true)
@@ -611,19 +630,62 @@ class Dig : CliktCommand(
                 if (tracks.isEmpty()) echo("@|yellow 无匹配字幕, 跳过下载 |@".color)
                 tracks.forEachIndexed { idx, it ->
                     if (idx >= 1) echo()
-                    echo("@|bold 正在下载|@ ${it.languageName}[${it.language}]".color)
-                    val fileDst = with(placeholderContext + it.placeHolderContext) {
-                        buildFile(tracksPreference.fileDir.subtitleName)
-                    }.duplicateRename()
+                    echo("@|bold 正在下载：|@ ${it.languageName}[${it.language}]".color)
                     val srt = client.getSubtitleContent(it.subtitleUrl ?: run {
                         echo("@|red 无法获取当前字幕地址, 跳过下载|@".color)
                         return@forEachIndexed
                     }).body.encodeToSrt()
-                    fileDst.ensureCreate()
-                    fileDst.sink().use { sink ->
-                        sink.buffer().writeString(srt, Charsets.UTF_8)
+                    val fileDst by lazy {
+                        with(placeholderContext + it.placeHolderContext) {
+                            buildFile(tracksPreference.fileDir.subtitleName)
+                        }.duplicateRename()
                     }
-                    echo("@|yellow 下载完成! 文件保存至:|@ ${fileDst.toNormalizedAbsPath()}".color)
+                    suspend fun File.writeTextWithBuff(text: String) {
+                        ensureCreate()
+                        sink().use { sink ->
+                            sink.buffer().writeString(text, Charsets.UTF_8)
+                        }
+                    }
+
+                    if (!zhConvert || (zhConvert && zhConvertKeepOrigin)) {
+                        fileDst.writeTextWithBuff(srt)
+                        echo("@|yellow 下载完成! 文件保存至:|@ ${fileDst.toNormalizedAbsPath()}".color)
+                    }
+                    if (zhConvert) {
+                        echo("使用繁化姬将文本转换至 @|yellow,bold [${zhConvertTo.languageName}]|@...".color)
+                        if (tracksPreference.zhConvertAlert) {
+                            confirm(
+                                """
+                                @|bold 注意:|@
+                                @|bold 使用繁化姬转换服务即说明您业已同意其服务条款:|@ https://docs.zhconvert.org/license/
+                                @|bold 若需商业使用应按照其要求支付费用:|@ https://docs.zhconvert.org/commercial/
+                                @|bold 是否同意? |@
+                            """.trimIndent().color.toString(), default = false
+                            ).also {
+                                if (it != true) {
+                                    echo("@|yellow 跳过转换... |@")
+                                    if (!zhConvertKeepOrigin) {
+                                        fileDst.writeTextWithBuff(srt)
+                                        echo("@|yellow 将原始文本保存至:|@ ${fileDst.toNormalizedAbsPath()}")
+                                    }
+                                }
+                                if (it == true) tracksPreference.zhConvertAlert = false
+                            }
+                        }
+
+                        val converted = client.client.requestZhConvert(srt, zhConvertTo)
+                        converted.onFailed {
+                            echo("转换失败! $it - ${converted.msg}")
+                        }.onSuccess {
+                            val convDst =
+                                with(placeholderContext + converted.data.converter.placeHolderContext) {
+                                    buildFile(tracksPreference.fileDir.subtitleName)
+                                }.duplicateRename()
+
+                            convDst.writeTextWithBuff(converted.data.text)
+                            echo("转换成功, 保存至: ${convDst.toNormalizedAbsPath()}")
+                        }
+                    }
                 }
                 echo()
             }
