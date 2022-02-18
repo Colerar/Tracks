@@ -14,12 +14,12 @@ fun List<VideoPart>.printConsole(showAll: Boolean = false) {
         idx <= PART_SHOW_LIMIT - 2 || idx == lastIndex || showAll
     }.forEach { part ->
         if (part.part == size && part.part != 1 && !showAll) echo(" ......")
-        echo(part.toAnsi())
+        echo("- ${part.toAnsi()}")
     }
 }
 
 fun VideoPart.toAnsi(): Ansi {
     val partPadded = part.toString().padStart(3, '0')
     val duration = duration?.toInt().toStringOrDefault { it.secondsToDuration() }
-    return "- P$partPadded - $name [$duration]".color
+    return "P$partPadded - $name [$duration]".color
 }

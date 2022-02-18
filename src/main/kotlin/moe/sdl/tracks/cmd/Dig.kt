@@ -133,6 +133,8 @@ class Dig : CliktCommand(
         "-only-cover" to DownloadType.COVER,
     )
 
+    private val onlyInfo by option("-no-down", "-only-info", "-nd", "-oi").flag()
+
     private val multipart by option("-multipart", "-mt", help = "下载分块数, 默认不分块")
         .int().default(1)
         .validate {
@@ -185,9 +187,7 @@ class Dig : CliktCommand(
     }
 
     private val videoCodec by option(
-        "-videocodec",
-        "-codec",
-        "-cv",
+        "-videocodec", "-codec", "-cv",
         help = "视频编码优先级, 默认 [avc, hevc, av1], 可用 [$availableVideoCodec]"
     )
         .convert { str ->
@@ -233,12 +233,9 @@ class Dig : CliktCommand(
     }.default(listOf("zh-hans", "zh-hant", "中文"))
 
     private val subtitleLooseMode by option(
-        "-sub-loose",
-        "-sub-loose-match",
-        "-slm",
-        help = "是否开启宽松模式, 不仅将匹配语言代码, 同时也匹配语言名称, 并且仅要求, 默认开启"
-    )
-        .flag("-sub-strict", "-ss", default = true)
+        "-sub-loose", "-sub-loose-match", "-slm",
+        help = "是否开启宽松模式, 不仅将匹配语言代码, 同时也匹配语言名称, 并且仅要求匹配项包含, 而非相等, 默认开启"
+    ).flag("-sub-strict", "-ss", default = true)
 
     private val subtitleWildMatch by option(
         "-sub-weird", "-sw",
@@ -252,9 +249,7 @@ class Dig : CliktCommand(
         .flag("-mux", "-m", default = false)
 
     private val showAllParts by option(
-        "-pd",
-        "-part-detail",
-        "-show-all-parts",
+        "-pd", "-part-detail", "-show-all-parts",
         help = "显示所有分P, 默认关闭"
     ).flag(default = false)
 
@@ -319,6 +314,7 @@ class Dig : CliktCommand(
         echo()
         var parts = info.data?.parts ?: errorExit(withHelp = false) { "获取分 P 失败, 可能是网络波动, 请稍后再试。" }
         parts.printConsole(showAllParts)
+        if (onlyInfo) return
         echo()
 
         // '0' means ALL, i.e., keep all origin, so here only filter for non-zero input
@@ -336,13 +332,8 @@ class Dig : CliktCommand(
             downloadCover(info.data!!.cover, dst)
         }
 
-        var downloadedPart = 0
-
-        parts.forEach { part ->
-            if (downloadedPart >= 1) {
-                repeat(2) { echo() }
-            }
-            downloadedPart++
+        parts.forEachIndexed { idx, part ->
+            if (idx >= 1) repeat(2) { echo() }
 
             echo("@|bold 下载分 P: |@".color.toString() + part.toAnsi().toString())
             val response = client.fetchVideoDashTracks(
@@ -369,8 +360,14 @@ class Dig : CliktCommand(
         val bangumiContext = basicContext + info.data!!.placeHolderResult
         val dst = bangumiContext.buildFile(tracksPreference.fileDir.coverName)
         var episodes = info.data?.episodes ?: infoExit { "无可用集数, 退出下载" }
+        echo()
+        episodes.printConsole(info.data!!.type, showAllParts)
+        if (onlyInfo) return
+        echo()
+
         downloadCover(info.data!!.cover, dst)
         episodes = when {
+            !targetParts.isNullOrEmpty() && targetParts!!.contains(0) -> episodes
             targetParts.isNullOrEmpty() && isEpisode ->
                 listOf(episodes.firstOrNull { it.id == numId } ?: infoExit { "无法找到 ep$numId, 退出下载" })
             targetParts.isNullOrEmpty() && isSeason -> {
@@ -385,7 +382,9 @@ class Dig : CliktCommand(
             }
             else -> errorExit(withHelp = false) { "集数选择遇到了意料外的情况, 可能是无可用集数" }
         }
+
         echo("@|bold 已选择:|@ ${episodes.map { it.title }}".color)
+
         episodes.forEachIndexed { index, episode ->
             if (index >= 1) repeat(2) { echo() }
             echo("@|bold 下载${info.data!!.type.toShow()}单集:|@ ${episode.toAnsi()}".color)
@@ -588,20 +587,27 @@ class Dig : CliktCommand(
                 echo("可用字幕: $langs")
 
                 fun String?.contain(other: String) = this?.contains(other, true) == true
-                val tracks = subtitleLanguages.fold(mutableListOf<SubtitleTrack>()) { acc, str ->
-                    subtitles.filter { tr ->
-                        when {
-                            subtitleLooseMode && (tr.languageName.contain(str) || tr.language.contain(str)) -> true
-                            tr.language?.equals(str, true) == true -> true
-                            else -> false
+
+                val tracks =
+                    if (subtitleLanguages.firstOrNull { it.equals("all", true) } != null) {
+                        subtitles
+                    } else {
+                        subtitleLanguages.fold(mutableListOf<SubtitleTrack>()) { acc, str ->
+                            subtitles.filter { tr ->
+                                when {
+                                    subtitleLooseMode && (tr.languageName.contain(str) || tr.language.contain(str)) -> true
+                                    tr.language?.equals(str, true) == true -> true
+                                    else -> false
+                                }
+                            }.let { acc.addAll(it) }
+                            acc
+                        }.let { list ->
+                            if (!subtitleWildMatch) {
+                                list.firstOrNull()?.let { listOf(it) } ?: emptyList()
+                            } else list
                         }
-                    }.let { acc.addAll(it) }
-                    acc
-                }.let { list ->
-                    if (!subtitleWildMatch) {
-                        list.firstOrNull()?.let { listOf(it) } ?: emptyList()
-                    } else list
-                }
+                    }
+
                 if (tracks.isEmpty()) echo("@|yellow 无匹配字幕, 跳过下载 |@".color)
                 tracks.forEachIndexed { idx, it ->
                     if (idx >= 1) echo()

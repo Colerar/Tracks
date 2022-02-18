@@ -1,5 +1,7 @@
 package moe.sdl.tracks.model
 
+import com.github.ajalt.clikt.output.TermUi
+import moe.sdl.tracks.consts.PART_SHOW_LIMIT
 import moe.sdl.tracks.util.color
 import moe.sdl.tracks.util.string.secondsToDuration
 import moe.sdl.tracks.util.string.toStringOrDefault
@@ -30,4 +32,15 @@ fun BangumiEpisode.toAnsi(): String {
     val paddedPart = title.toString().padStart(3, '0')
     val duration = this.durationInSecond.toStringOrDefault { it.toInt().secondsToDuration() }
     return """$paddedPart - $longTitle [$duration]"""
+}
+
+fun List<BangumiEpisode>.printConsole(type: BangumiType, showAll: Boolean) {
+    TermUi.echo("@|bold 目标${type.toShow()}共有|@ @|yellow,bold $size|@ @|bold 集|@".color)
+    val filtered = filterIndexed { idx, _ ->
+        idx <= PART_SHOW_LIMIT - 2 || idx == lastIndex || showAll
+    }
+    filtered.forEachIndexed { idx, ep ->
+        if (idx == filtered.lastIndex && idx != 0 && !showAll) TermUi.echo(" ......")
+        TermUi.echo("- ${ep.toAnsi()}")
+    }
 }
