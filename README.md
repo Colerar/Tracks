@@ -15,7 +15,7 @@ https://user-images.githubusercontent.com/62297254/154002139-1ac70e9f-0d05-4e9e-
 
 ## 安装
 
-See: [INSTALL.md](INSTALL.md)
+See: [INSTALL.md](docs/_INSTALL.md)
 
 ## 功能列表 & TODO
 
@@ -25,7 +25,6 @@ See: [INSTALL.md](INSTALL.md)
   - [X] 普通视频下载
   - [X] 指定分 P
   - [X] 断点续传
-  - [ ] 分片多线程下载
   - [ ] Aria2 支持
   - [ ] 指定时长下载?
 - 订阅
@@ -33,5 +32,7 @@ See: [INSTALL.md](INSTALL.md)
   - [ ] 番剧订阅
 - Misc
   - [ ] 弹幕 to ASS
-  - [ ] 字幕 to SRT / ASS
+  - [X] 字幕 to SRT
+  - [X] 繁化姬集成
+  - [X] 自定义输出文件名 - [详情](docs/custom-output.md)
 - 🤔直播流抓取? ~至少 2.0 版本了~
