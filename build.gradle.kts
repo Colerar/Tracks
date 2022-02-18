@@ -25,6 +25,7 @@ val ktorVersion = "1.6.7"
 dependencies {
     testImplementation(kotlin("test"))
     // kotlinx
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.6.10")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.2")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.3.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")

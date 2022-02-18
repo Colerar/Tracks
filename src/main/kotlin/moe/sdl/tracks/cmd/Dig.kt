@@ -135,7 +135,9 @@ class Dig : CliktCommand(
         "-only-cover" to DownloadType.COVER,
     )
 
-    private val onlyInfo by option("-no-down", "-only-info", "-nd", "-oi").flag()
+    private val onlyInfo by option(
+        "-no-down", "-only-info", "-nd", "-oi", help = "仅输出信息, 不下载"
+    ).flag()
 
     private val multipart by option("-multipart", "-mt", help = "下载分块数, 默认不分块")
         .int().default(1)
@@ -191,21 +193,20 @@ class Dig : CliktCommand(
     private val videoCodec by option(
         "-videocodec", "-codec", "-cv",
         help = "视频编码优先级, 默认 [avc, hevc, av1], 可用 [$availableVideoCodec]"
-    )
-        .convert { str ->
-            str.split(Regex("[,，]"))
-                .filterNot { it.isEmpty() || it.isBlank() }
-                .map {
-                    when {
-                        it.matches(Regex("""^\s*(hevc|h\.?265)\s*$""", RegexOption.IGNORE_CASE)) -> CodecId.HEVC
-                        it.matches(Regex("""^\s*(avc|h\.?264)\s*$""", RegexOption.IGNORE_CASE)) -> CodecId.AVC
-                        it.matches(Regex("""^\s*av1\s*$""", RegexOption.IGNORE_CASE)) -> CodecId.AV1
-                        else -> throw UsageError("未知的视频编码 '$it', 请检查输入后重试, 可用 [$availableVideoCodec]")
-                    }
-                }.also {
-                    Log.debug { "Priority of video codecs: ${it.joinToString()}" }
+    ).convert { str ->
+        str.split(Regex("[,，]"))
+            .filterNot { it.isEmpty() || it.isBlank() }
+            .map {
+                when {
+                    it.matches(Regex("""^\s*(hevc|h\.?265)\s*$""", RegexOption.IGNORE_CASE)) -> CodecId.HEVC
+                    it.matches(Regex("""^\s*(avc|h\.?264)\s*$""", RegexOption.IGNORE_CASE)) -> CodecId.AVC
+                    it.matches(Regex("""^\s*av1\s*$""", RegexOption.IGNORE_CASE)) -> CodecId.AV1
+                    else -> throw UsageError("未知的视频编码 '$it', 请检查输入后重试, 可用 [$availableVideoCodec]")
                 }
-        }.default(listOf(CodecId.AVC, CodecId.HEVC, CodecId.AV1))
+            }.also {
+                Log.debug { "Priority of video codecs: ${it.joinToString()}" }
+            }
+    }.default(listOf(CodecId.AVC, CodecId.HEVC, CodecId.AV1))
 
     private val _audioQuality by option(
         "-qa", "-audio-quality",
@@ -251,7 +252,9 @@ class Dig : CliktCommand(
 
     private val zhConvertTo by option(
         "-zhconvert-to", "-zt",
-        help = "使用繁化姬转换的目标, 默认简体化, 详见: https://zhconvert.org/ , 可用 [${Converter.values().joinToString { it.code }}]"
+        help = "使用繁化姬转换的目标, 默认简体化, 详见: https://zhconvert.org/ , 可用 [${
+            Converter.values().joinToString(",") { it.code }
+        }]"
     ).convert {
         Converter(it) ?: throw UsageError("转换目标 [$it] 输入错误! 可用选项: [${Converter.values().joinToString { it.code }}]")
     }.default(Converter.SIMPLIFIED)
@@ -264,7 +267,7 @@ class Dig : CliktCommand(
     private val onlyArtifact by option("-clean-up", "-only-artifact", "-oa", help = "是否只保留混流后的成品, 默认开启")
         .flag("-keep-material", "-km", default = true)
 
-    private val skipMux by option("-skip-mux", "-sm", help = "跳过混流")
+    private val skipMux by option("-skip-mux", "-sm", help = "是否跳过混流")
         .flag("-mux", "-m", default = false)
 
     private val showAllParts by option(
@@ -640,6 +643,7 @@ class Dig : CliktCommand(
                             buildFile(tracksPreference.fileDir.subtitleName)
                         }.duplicateRename()
                     }
+
                     suspend fun File.writeTextWithBuff(text: String) {
                         ensureCreate()
                         sink().use { sink ->

@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.convert
 import java.io.File
+import kotlin.reflect.KMutableProperty
 import moe.sdl.tracks.config.tracksPreference
 import moe.sdl.tracks.util.color
 import moe.sdl.tracks.util.io.toNormalizedAbsPath
@@ -16,6 +17,8 @@ class Config : CliktCommand(
     配置命令
     
     使用方法:
+     
+    'tracks config list' 列举所有可用选项
      
     'tracks config key1=xxx,key2=yyy,' 分别设置 key1 key2 的值为 xxx yyy
     
@@ -46,9 +49,10 @@ class Config : CliktCommand(
             val lowercase = k.lowercase()
             if (lowercase == "list") {
                 echo("@|bold 当前可用配置:|@".color)
-                keyMap.forEach { (t, u) -> 
-                    echo()
+                val list = keyMap.toList()
+                list.forEachIndexed { idx, (t, u) ->
                     echo("${t.padEnd(20, ' ')} - ${u.desc}")
+                    if (idx != list.lastIndex) echo()
                 }
                 return
             }
@@ -59,63 +63,14 @@ class Config : CliktCommand(
             runCatching {
                 if (v == null || v.isBlank() || v.isEmpty()) operation.onQuery(this) else operation.onSet(this, v)
             }.onFailure {
-                echo("对于 [$k] 的设置出现错误, 可能是输入错误: $v")
-                echo(it)
+                if (it is UsageError) echo(it.text)
+                else {
+                    echo("对于 [$k] 的设置出现错误, 可能是输入错误: $v")
+                    echo(it)
+                }
             }
         }
     }
-}
-
-private val keyMap by lazy {
-    mapOf(
-        "ffmpeg" to ArgumentOperation(
-            desc = "FFmpeg 路径",
-            onQuery = { TermUi.echo("FFmpeg 路径目前为 ${tracksPreference.programDir.ffmpeg}") },
-            onSet = {
-                val abs = File(it).toNormalizedAbsPath()
-                if (FFmpeg(abs).isFFmpeg) {
-                    tracksPreference.programDir.ffmpeg = abs
-                    TermUi.echo("@|yellow FFmpeg 路径被设置为: $it |@".color)
-                } else TermUi.echo("@|red 输入路径非 FFmpeg 路径: $abs|@".color)
-            },
-        ),
-//        "ffprobe" to ArgumentOperation(
-//            onQuery = { TermUi.echo("FFprobe 路径目前为 ${tracksPreference.programDir.ffprobe}") },
-//            onSet = {
-//                val abs = File(it).toNormalizedAbsPath()
-//                if (FFprobe(abs).isFFprobe) {
-//                    tracksPreference.programDir.ffprobe = abs
-//                    TermUi.echo("@|yellow FFprobe 路径被设置为: $it |@".color)
-//                } else TermUi.echo("@|red 输入路径非 FFprobe 路径: $abs|@".color)
-//            },
-//        )
-        "proxy-enable" to ArgumentOperation(
-            desc = "是否开启代理, 仅支持 http",
-            onQuery = {
-                TermUi.echo("当前代理状态 ${
-                    if (tracksPreference.proxy.enable) "@|yellow,bold 开启|@".color.toString() else "关闭"
-                }")
-            },
-            onSet = {
-                val l = it.lowercase() // lowercase
-                val boolean = when {
-                    l.startsWith("t") || l.toBooleanStrictOrNull() ==true || (it == "1") -> true
-                    l.startsWith("f") || l.toBooleanStrictOrNull() == true || (it == "0") -> false
-                    else -> throw UsageError("输入错误! 请输入 true/false!")
-                }
-                tracksPreference.proxy.enable = boolean
-                TermUi.echo(if (boolean) "代理已开启!" else "代理已关闭！")
-            }
-        ),
-        "proxy-url" to ArgumentOperation(
-            desc = "http 代理地址",
-            onQuery = { TermUi.echo("当前代理地址: ${tracksPreference.proxy.url}") },
-            onSet = {
-                tracksPreference.proxy.url = it
-                TermUi.echo("代理地址已设置为: $it")
-            }
-        )
-    )
 }
 
 private class ArgumentOperation(
@@ -123,3 +78,54 @@ private class ArgumentOperation(
     val onQuery: CliktCommand.() -> Unit,
     val onSet: CliktCommand.(value: String) -> Unit,
 )
+
+@Suppress("FunctionName")
+private inline fun <T : Any?> ArgumentVariable(
+    name: String, prop: KMutableProperty<T>, crossinline conversion: CliktCommand.(String) -> T,
+) = ArgumentOperation(
+    desc = name,
+    onQuery = { TermUi.echo("当前$name：${prop.getter.call()}") },
+    onSet = {
+        prop.setter.call(conversion(it))
+        TermUi.echo("${name}设置为：${prop.getter.call()}")
+    }
+)
+
+@Suppress("FunctionName")
+private inline fun ArgumentVariableString(
+    name: String, prop: KMutableProperty<String>, crossinline conversion: CliktCommand.(String) -> String = { it }
+) = ArgumentVariable(name, prop, conversion)
+
+@Suppress("FunctionName")
+private inline fun ArgumentVariableStringNullable(
+    name: String, prop: KMutableProperty<String?>, crossinline conversion: CliktCommand.(String) -> String? = { it }
+) = ArgumentVariable(name, prop, conversion)
+
+@Suppress("FunctionName")
+private inline fun ArgumentBoolean(
+    name: String, prop: KMutableProperty<Boolean>, crossinline conversion: CliktCommand.(String) -> Boolean = {
+        val l = it.lowercase() // lowercase
+        when {
+            l.startsWith("t") || l.toBooleanStrictOrNull() == true || (it == "1") -> true
+            l.startsWith("f") || l.toBooleanStrictOrNull() == true || (it == "0") -> false
+            else -> throw UsageError("输入错误! 请输入 true/false!")
+        }
+    }
+) = ArgumentVariable(name, prop, conversion)
+
+private val keyMap by lazy {
+    mapOf(
+        "ffmpeg" to ArgumentVariableStringNullable("FFmpeg 路径", tracksPreference.programDir::ffmpeg, conversion = {
+            val abs = File(it).toNormalizedAbsPath()
+            if (FFmpeg(abs).isFFmpeg) it
+            else throw UsageError("@|red 输入路径非 FFmpeg 路径: $abs|@".color.toString())
+        }),
+        "proxy-enable" to ArgumentBoolean("代理状态", tracksPreference.proxy::enable),
+        "proxy-url" to ArgumentVariableStringNullable("HTTP 代理地址", tracksPreference.proxy::url),
+        "name-cover" to ArgumentVariableString("封面名称样式", tracksPreference.fileDir::coverName),
+        "name-video" to ArgumentVariableString("视频名称样式", tracksPreference.fileDir::videoName),
+        "name-audio" to ArgumentVariableString("音频名称样式", tracksPreference.fileDir::audioName),
+        "name-subtitle" to ArgumentVariableString("字幕名称样式", tracksPreference.fileDir::subtitleName),
+        "name-final" to ArgumentVariableString("混流后的名称样式", tracksPreference.fileDir::finalArtifact),
+    )
+}

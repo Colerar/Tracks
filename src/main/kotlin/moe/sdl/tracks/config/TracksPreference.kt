@@ -27,11 +27,11 @@ internal class TracksPreference(
 
     @Serializable
     class Path(
-        val coverName: String = "%date%-%video:title%.png",
-        val videoName: String = "%date%-%video:title%-%part:num%.m4v",
-        val audioName: String = "%date%-%video:title%-%part:num%.m4a",
-        val subtitleName: String = "%date%-%video:title%-%part:num%.%subtitle:lang%.srt",
-        val finalArtifact: String = "%date%-%video:title%-%part:num%.mp4",
+        var coverName: String = "%date%-%video:title%.png",
+        var videoName: String = "%date%-%video:title%-%part:num%.m4v",
+        var audioName: String = "%date%-%video:title%-%part:num%.m4a",
+        var subtitleName: String = "%date%-%video:title%-%part:num%.%subtitle:lang%.srt",
+        var finalArtifact: String = "%date%-%video:title%-%part:num%.mp4",
     )
 
     @Serializable
