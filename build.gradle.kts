@@ -38,7 +38,7 @@ dependencies {
     implementation("io.ktor:ktor-client-encoding:$ktorVersion")
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     // bilibili api
-    implementation("moe.sdl.yabapi:yabapi-core-jvm:0.0.8-SNAPSHOT")
+    implementation("moe.sdl.yabapi:yabapi-core-jvm:0.0.9-SNAPSHOT")
     // file system
     implementation("com.squareup.okio:okio:3.0.0")
     // cli

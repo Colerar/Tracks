@@ -18,4 +18,9 @@ class DownloadTest {
     fun subTitleDownload() {
         Dig().parse("av60977932 -sl en-US,zh-Hans -sw".split(' '))
     }
+
+    @Test
+    fun chapterTest() {
+        Dig().parse("av207575334 -qv 480p".split(' '))
+    }
 }

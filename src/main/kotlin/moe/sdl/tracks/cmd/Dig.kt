@@ -21,6 +21,7 @@ import kotlinx.atomicfu.getAndUpdate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -39,6 +40,7 @@ import moe.sdl.tracks.external.zhconvert.requestZhConvert
 import moe.sdl.tracks.model.VideoResult
 import moe.sdl.tracks.model.printConsole
 import moe.sdl.tracks.model.toAnsi
+import moe.sdl.tracks.model.toMetadata
 import moe.sdl.tracks.model.toShow
 import moe.sdl.tracks.util.Log
 import moe.sdl.tracks.util.PlaceholderContext
@@ -67,6 +69,7 @@ import moe.sdl.yabapi.api.getBangumiDetailedBySeason
 import moe.sdl.yabapi.api.getBangumiReviewInfo
 import moe.sdl.yabapi.api.getSubtitleContent
 import moe.sdl.yabapi.api.getVideoInfo
+import moe.sdl.yabapi.api.getVideoPlayerInfo
 import moe.sdl.yabapi.data.GeneralCode
 import moe.sdl.yabapi.data.bangumi.BangumiDetailedResponse
 import moe.sdl.yabapi.data.stream.AbstractStreamData
@@ -99,11 +102,6 @@ class Dig : CliktCommand(
             TermUi.echo("@|yellow 自动检测到 FFmpeg 路径:|@ $path".color)
             tracksPreference.programDir.ffmpeg = path
         }
-//        if (tracksPreference.programDir.ffprobe == null) {
-//            val path = getCliPath("ffprobe") ?: errorExit { errorTip }
-//            TermUi.echo("@|yellow 自动检测到 FFprobe 路径:|@ $path".color)
-//            tracksPreference.programDir.ffprobe = path
-//        }
     }
 
     private val url by argument("url", "B 站视频地址或 av BV ss ep md 等号码")
@@ -255,8 +253,8 @@ class Dig : CliktCommand(
         help = "使用繁化姬转换的目标, 默认简体化, 详见: https://zhconvert.org/ , 可用 [${
             Converter.values().joinToString(",") { it.code }
         }]"
-    ).convert {
-        Converter(it) ?: throw UsageError("转换目标 [$it] 输入错误! 可用选项: [${Converter.values().joinToString { it.code }}]")
+    ).convert { str ->
+        Converter(str) ?: throw UsageError("转换目标 [$str] 输入错误! 可用选项: [${Converter.values().joinToString { it.code }}]")
     }.default(Converter.SIMPLIFIED)
 
     private val zhConvertKeepOrigin by option(
@@ -432,24 +430,32 @@ class Dig : CliktCommand(
     /**
      * @param final final artifact, will be automatically rename if having same name file
      */
-    private suspend fun muxStream(audioDst: File?, videoDst: File?, final: File, scope: CoroutineScope) {
+    private suspend fun muxStream(audioDst: File?, videoDst: File?, chapterDst: File?, final: File, scope: CoroutineScope) {
         val artifact = if (final.exists()) {
             final.duplicateRename().also {
                 echo("@|yellow 检测到文件重复, 更名为:|@ ${it.name}".color)
             }
         } else final
         val ffmpegDir = tracksPreference.programDir.ffmpeg
-//        val ffprobeDir = tracksPreference.programDir.ffprobe
         val ffmpeg = FFmpeg(ffmpegDir ?: errorExit { "FFmpeg 未配置! 通过 'tracks config ffmpeg=/path/to/file' 配置" })
-//        val ffprobe = FFprobe(ffprobeDir ?: errorExit { "FFprobe 未配置! 通过 'tracks config ffprobe=/path/to/file' 配置" })
         if (!ffmpeg.isFFmpeg) errorExit { "路径错误, 非 FFmpeg 路径!" }
         val builder = ffmpeg.builder()
             .apply {
+                chapterDst?.let {
+                    if (chapterDst.exists()) {
+                        addInput(it.toNormalizedAbsPath())
+                    }
+                }
                 videoDst?.let { addInput(it.toNormalizedAbsPath()) }
                 audioDst?.let { addInput(it.toNormalizedAbsPath()) }
             }
             .addOutput(
                 FFmpegOutputBuilder()
+                    .apply {
+                        if (chapterDst?.exists() == true) {
+                            addExtraArgs("-map_metadata", "0")
+                        }
+                    }
                     .setVideoCodec("copy")
                     .setAudioCodec("copy")
                     .setFormat("mp4")
@@ -467,6 +473,7 @@ class Dig : CliktCommand(
                 echo("清除中间文件...")
                 audioDst?.apply { if (exists()) delete() }
                 videoDst?.apply { if (exists()) delete() }
+                chapterDst?.apply { if (exists()) delete() }
             }
         }
     }
@@ -580,6 +587,9 @@ class Dig : CliktCommand(
         // for mux
         var videoDst: File? = null
         var audioDst: File? = null
+        val chapterDst: File by lazy {
+            File(".", "$aid-$cid.metadata.txt")
+        }
         val duration: Long? = data.dash?.duration?.toLong()
 
         // placeholder context for file name
@@ -596,11 +606,17 @@ class Dig : CliktCommand(
             }
         }
 
+        val playerInfo by lazy {
+            scope.async {
+                client.getVideoPlayerInfo(aid, cid)
+            }
+        }
+
         run subtitle@{
             if (DownloadType.SUBTITLE in downloads) {
                 echo()
                 echo("@|magenta ==>|@ @|bold 下载字幕中...|@".color)
-                val subtitles = client.getVideoInfo(aid, cid).data?.subtitle?.list
+                val subtitles = playerInfo.await().data?.subtitle?.list
                 if (subtitles.isNullOrEmpty()) {
                     echo("@|yellow 无可用字幕, 跳过下载...|@".color)
                     return@subtitle
@@ -720,6 +736,11 @@ class Dig : CliktCommand(
 
                 downloadStream(videoDst!!, tr, trackUrl, size)
                 echo()
+                val viewPoints = playerInfo.await().data?.viewPoints ?: return@video
+                if (viewPoints.isNotEmpty()) {
+                    chapterDst.ensureCreate()
+                    chapterDst.writeText(viewPoints.toMetadata())
+                }
             }
         }
 
@@ -757,7 +778,7 @@ class Dig : CliktCommand(
                 val context = placeholderContext + videoStreamContext + audioStreamContext
                 val final = context.buildFile(tracksPreference.fileDir.finalArtifact)
 
-                muxStream(audioDst, videoDst, final, scope)
+                muxStream(audioDst, videoDst, chapterDst, final, scope)
             }
             else -> echo("@|cyan,bold 无视频或音频, 跳过混流...|@".color)
         }
