@@ -36,7 +36,12 @@ inline fun PlaceholderContext(vararg keyToFunc: Pair<String, () -> Any?>): Place
     PlaceholderContext(keyToFunc.toMap())
 
 fun PlaceholderContext.buildFile(pattern: String, parent: String = "."): File =
-    File(parent, pattern.decodePlaceholder())
+    File(
+        parent,
+        pattern.decodePlaceholder()
+            .replace(Regex("""^\s+"""), "")
+            .replace(Regex("""[?*:"<>/|\\]"""), "-")
+    )
 
 private fun ldtDefault() = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
 
