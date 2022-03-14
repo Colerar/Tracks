@@ -5,15 +5,16 @@ import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.convert
-import java.io.File
-import kotlin.reflect.KMutableProperty
 import moe.sdl.tracks.config.tracksPreference
 import moe.sdl.tracks.util.color
 import moe.sdl.tracks.util.io.toNormalizedAbsPath
 import net.bramp.ffmpeg.FFmpeg
+import java.io.File
+import kotlin.reflect.KMutableProperty
 
 class Config : CliktCommand(
-    name = "config", help = """
+    name = "config",
+    help = """
     配置命令
     
     使用方法:
@@ -81,7 +82,9 @@ private class ArgumentOperation(
 
 @Suppress("FunctionName")
 private inline fun <T : Any?> ArgumentVariable(
-    name: String, prop: KMutableProperty<T>, crossinline conversion: CliktCommand.(String) -> T,
+    name: String,
+    prop: KMutableProperty<T>,
+    crossinline conversion: CliktCommand.(String) -> T,
 ) = ArgumentOperation(
     desc = name,
     onQuery = { TermUi.echo("当前$name：${prop.getter.call()}") },
@@ -93,17 +96,23 @@ private inline fun <T : Any?> ArgumentVariable(
 
 @Suppress("FunctionName")
 private inline fun ArgumentVariableString(
-    name: String, prop: KMutableProperty<String>, crossinline conversion: CliktCommand.(String) -> String = { it }
+    name: String,
+    prop: KMutableProperty<String>,
+    crossinline conversion: CliktCommand.(String) -> String = { it }
 ) = ArgumentVariable(name, prop, conversion)
 
 @Suppress("FunctionName")
 private inline fun ArgumentVariableStringNullable(
-    name: String, prop: KMutableProperty<String?>, crossinline conversion: CliktCommand.(String) -> String? = { it }
+    name: String,
+    prop: KMutableProperty<String?>,
+    crossinline conversion: CliktCommand.(String) -> String? = { it }
 ) = ArgumentVariable(name, prop, conversion)
 
 @Suppress("FunctionName")
 private inline fun ArgumentBoolean(
-    name: String, prop: KMutableProperty<Boolean>, crossinline conversion: CliktCommand.(String) -> Boolean = {
+    name: String,
+    prop: KMutableProperty<Boolean>,
+    crossinline conversion: CliktCommand.(String) -> Boolean = {
         val l = it.lowercase() // lowercase
         when {
             l.startsWith("t") || l.toBooleanStrictOrNull() == true || (it == "1") -> true

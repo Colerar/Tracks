@@ -1,7 +1,7 @@
 package moe.sdl.tracks.util
 
-import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
 
 class ExternalTest {
     @Test

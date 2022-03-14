@@ -3,7 +3,6 @@ package moe.sdl.tracks.util.io
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.headers
 import io.ktor.http.HttpHeaders
-import kotlin.coroutines.CoroutineContext
 import moe.sdl.tracks.consts.BILI_WWW
 import moe.sdl.tracks.util.Log
 import moe.sdl.yabapi.BiliClient
@@ -19,6 +18,7 @@ import moe.sdl.yabapi.data.stream.VideoFnvalFormat
 import moe.sdl.yabapi.data.stream.VideoStreamResponse
 import moe.sdl.yabapi.enums.video.VideoFormat
 import moe.sdl.yabapi.util.encoding.bv
+import kotlin.coroutines.CoroutineContext
 
 val highestRequest = StreamRequest(
     qnQuality = QnQuality.V8K,
@@ -28,7 +28,8 @@ val highestRequest = StreamRequest(
         need4K = true,
         need8K = true,
         needDolby = true
-    ))
+    )
+)
 
 suspend inline fun BiliClient.fetchVideoDashTracks(
     bid: String,
@@ -37,7 +38,9 @@ suspend inline fun BiliClient.fetchVideoDashTracks(
 ): VideoStreamResponse = fetchVideoStream(bid, cid, highestRequest, context)
 
 suspend inline fun BiliClient.fetchVideoDashTracks(
-    aid: Int, cid: Int, context: CoroutineContext = this.context,
+    aid: Int,
+    cid: Int,
+    context: CoroutineContext = this.context,
 ): VideoStreamResponse = fetchVideoDashTracks(aid.bv, cid, context)
 
 suspend inline fun BiliClient.fetchPgcDashTracks(

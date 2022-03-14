@@ -1,8 +1,8 @@
 package moe.sdl.tracks.util
 
-import java.io.File
 import moe.sdl.tracks.util.io.getJarLocation
 import moe.sdl.tracks.util.io.toNormalizedAbsPath
+import java.io.File
 
 private val failedRegex = Regex("""(not find|not found|could not|cannot|can't|can not)""", RegexOption.IGNORE_CASE)
 

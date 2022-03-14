@@ -4,7 +4,6 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.http.HttpHeaders
-import java.io.File
 import kotlinx.coroutines.runBlocking
 import moe.sdl.tracks.config.client
 import moe.sdl.tracks.util.io.downloadFile
@@ -18,6 +17,7 @@ import moe.sdl.yabapi.api.getVideoParts
 import moe.sdl.yabapi.data.stream.CodecId
 import moe.sdl.yabapi.data.stream.QnQuality
 import org.junit.jupiter.api.Test
+import java.io.File
 
 class DownloadTest {
 

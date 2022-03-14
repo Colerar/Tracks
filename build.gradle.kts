@@ -1,6 +1,9 @@
 plugins {
-    kotlin("jvm") version "1.6.10"
-    kotlin("plugin.serialization") version "1.5.31"
+    kotlin("jvm")
+    kotlin("plugin.serialization")
+    id("org.jlleitschuh.gradle.ktlint")
+    id("org.jlleitschuh.gradle.ktlint-idea")
+    id("com.github.johnrengelman.shadow")
     application
 }
 
@@ -20,34 +23,30 @@ application {
     mainClass.set("moe.sdl.tracks.TracksKt")
 }
 
-val ktorVersion = "1.6.7"
-
 dependencies {
     testImplementation(kotlin("test"))
     // kotlinx
-    implementation("org.jetbrains.kotlin:kotlin-reflect:1.6.10")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.3.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.3.1")
-    implementation("org.jetbrains.kotlinx:atomicfu:0.17.0")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:_")
+    implementation(KotlinX.serialization.json)
+    implementation(KotlinX.serialization.protobuf)
+    implementation(KotlinX.coroutines.core)
+    implementation(KotlinX.datetime)
+    implementation("org.jetbrains.kotlinx:atomicfu:_")
     // Ktor
-    implementation("io.ktor:ktor-client-core:$ktorVersion")
-    // implementation("io.ktor:ktor-client-serialization:${Versions.ktor}")
-    // implementation("io.ktor:ktor-client-websockets:$ktorVersion")
-    implementation("io.ktor:ktor-client-encoding:$ktorVersion")
-    implementation("io.ktor:ktor-client-cio:$ktorVersion")
+    implementation(Ktor.client.core)
+    implementation(Ktor.client.encoding)
+    implementation(Ktor.client.cio)
     // bilibili api
-    implementation("moe.sdl.yabapi:yabapi-core-jvm:0.0.9-SNAPSHOT")
+    implementation("moe.sdl.yabapi:yabapi-core-jvm:_")
     // file system
-    implementation("com.squareup.okio:okio:3.0.0")
+    implementation(Square.okio)
     // cli
-    implementation("com.github.ajalt.clikt:clikt:3.4.0")
-    implementation("org.fusesource.jansi:jansi:2.4.0")
+    implementation("com.github.ajalt.clikt:clikt:_")
+    implementation("org.fusesource.jansi:jansi:_")
     // FFmpeg cli wrapper
-    implementation("net.bramp.ffmpeg:ffmpeg:0.6.2")
+    implementation("net.bramp.ffmpeg:ffmpeg:_")
     // for turning off noisy log
-    implementation("org.slf4j:slf4j-simple:1.7.36")
+    implementation("org.slf4j:slf4j-simple:_")
 }
 
 tasks.test {
@@ -58,7 +57,6 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     kotlinOptions.jvmTarget = "17"
     kotlinOptions.freeCompilerArgs += "-opt-in=kotlin.RequiresOptIn"
 }
-
 
 tasks.installDist {
     val map = listOf("./build/saved/config/", "./build/saved/storage/", "./build/saved/.debug").map {

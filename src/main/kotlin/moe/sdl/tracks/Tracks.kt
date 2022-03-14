@@ -3,7 +3,6 @@ package moe.sdl.tracks
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.output.TermUi.echo
-import java.nio.channels.UnresolvedAddressException
 import moe.sdl.tracks.cmd.Config
 import moe.sdl.tracks.cmd.Dig
 import moe.sdl.tracks.cmd.LoginQR
@@ -15,6 +14,7 @@ import moe.sdl.tracks.util.OsType
 import moe.sdl.tracks.util.color
 import moe.sdl.tracks.util.osType
 import org.fusesource.jansi.AnsiConsole
+import java.nio.channels.UnresolvedAddressException
 
 fun main(args: Array<String>) {
     if (tracksPreference.first && osType == OsType.WINDOWS) {

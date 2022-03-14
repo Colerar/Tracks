@@ -12,9 +12,6 @@ import io.ktor.http.contentLength
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.core.isNotEmpty
 import io.ktor.utils.io.core.readBytes
-import java.io.File
-import kotlin.contracts.ExperimentalContracts
-import kotlin.properties.Delegates
 import kotlinx.atomicfu.AtomicRef
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -36,6 +33,9 @@ import moe.sdl.tracks.util.Log
 import okio.buffer
 import okio.sink
 import okio.source
+import java.io.File
+import kotlin.contracts.ExperimentalContracts
+import kotlin.properties.Delegates
 
 @OptIn(ExperimentalContracts::class)
 suspend fun HttpClient.downloadFile(
@@ -90,13 +90,17 @@ private fun SideData(total: Long, part: Long, files: List<File>, key: Set<String
         (if (index == 0) fst else fst + 1) to scd
     }
     val zipped = mapped.zip(files)
-    return SideData(total, zipped.map { (range, file) ->
-        Part(
-            range,
-            file,
-            false,
-        )
-    }.toMutableList(), key)
+    return SideData(
+        total,
+        zipped.map { (range, file) ->
+            Part(
+                range,
+                file,
+                false,
+            )
+        }.toMutableList(),
+        key
+    )
 }
 
 suspend fun HttpClient.getRemoteFileSize(url: String, headBuilder: HttpRequestBuilder.() -> Unit = {}): Long =
@@ -172,9 +176,12 @@ suspend fun HttpClient.downloadResumable(
             val (start, end) = part.range
             downloadFile(url, part.file, getBuilder = {
                 getBuilder()
-                header(HttpHeaders.Range, "bytes=${start + part.file.length()}-$end".also {
-                    Log.debug { "Range header: $it" }
-                })
+                header(
+                    HttpHeaders.Range,
+                    "bytes=${start + part.file.length()}-$end".also {
+                        Log.debug { "Range header: $it" }
+                    }
+                )
             })
             sideData = sideData!!.copy().apply {
                 parts[index] = parts[index].copy(finished = true)

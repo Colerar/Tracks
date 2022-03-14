@@ -13,8 +13,8 @@ fun List<ViewPoint>.toMetadata(): String {
             with(sb) {
                 appendLine("[CHAPTER]")
                 appendLine("TIMEBASE=1/1000")
-                appendLine("START=${it.from!!*1000}")
-                appendLine("END=${it.to!!*1000-1}")
+                appendLine("START=${it.from!! * 1000}")
+                appendLine("END=${it.to!! * 1000 - 1}")
                 appendLine("title=${it.content ?: idx}")
                 appendLine()
             }

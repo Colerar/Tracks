@@ -1,11 +1,11 @@
 package moe.sdl.tracks.config
 
 import io.ktor.client.engine.ProxyType
-import java.io.File
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import moe.sdl.tracks.consts.TRACKS_CONFIG_FILE
+import java.io.File
 
 internal val tracksPreference: TracksPreference =
     runBlocking { getOrCreatePreference(TracksPreference()) }.apply {

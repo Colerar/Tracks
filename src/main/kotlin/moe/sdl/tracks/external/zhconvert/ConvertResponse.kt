@@ -20,4 +20,4 @@ data class ConvertResult(
     @SerialName("usedModules") val usedModules: List<String>,
     @SerialName("jpTextStyles") val jpTextStyles: List<String>,
     @SerialName("textFormat") val textFormat: String,
-): ResponseBody
+) : ResponseBody

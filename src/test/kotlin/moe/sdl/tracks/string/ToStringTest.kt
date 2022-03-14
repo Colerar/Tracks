@@ -1,6 +1,5 @@
 package moe.sdl.tracks.string
 
-import kotlin.test.assertEquals
 import kotlinx.datetime.Clock
 import moe.sdl.tracks.util.string.Bandwidth
 import moe.sdl.tracks.util.string.secondsToDuration
@@ -9,6 +8,7 @@ import moe.sdl.tracks.util.string.toStringOrDefault
 import moe.sdl.tracks.util.string.toStringOrNull
 import moe.sdl.tracks.util.string.toStringWithUnit
 import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
 
 internal class ToStringTest {
     @Test
@@ -26,9 +26,12 @@ internal class ToStringTest {
     @Test
     fun toStringOrDefaultWithTransformTest() {
         var array: IntArray? = intArrayOf(1, 2, 3, 4, 5)
-        assertEquals("[1, 2, 3, 4, 5]", array.toStringOrDefault {
-            it.contentToString()
-        })
+        assertEquals(
+            "[1, 2, 3, 4, 5]",
+            array.toStringOrDefault {
+                it.contentToString()
+            }
+        )
         array = null
         assertEquals("--", array.toStringOrDefault("--"))
     }

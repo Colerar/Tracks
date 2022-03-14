@@ -1,11 +1,11 @@
 package moe.sdl.tracks.util.io
 
-import java.io.File
-import java.net.URLDecoder
-import kotlin.io.path.absolutePathString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.sdl.tracks.util.Log
+import java.io.File
+import java.net.URLDecoder
+import kotlin.io.path.absolutePathString
 
 /**
  * 获取当前 jar 文件绝对位置

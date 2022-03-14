@@ -12,9 +12,6 @@ import com.github.ajalt.clikt.parameters.options.switch
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
 import io.ktor.client.HttpClient
-import java.io.File
-import kotlin.math.max
-import kotlin.math.min
 import kotlinx.atomicfu.AtomicRef
 import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.getAndUpdate
@@ -89,6 +86,9 @@ import net.bramp.ffmpeg.FFmpegExecutor
 import net.bramp.ffmpeg.builder.FFmpegOutputBuilder
 import okio.buffer
 import okio.sink
+import java.io.File
+import kotlin.math.max
+import kotlin.math.min
 
 class Dig : CliktCommand(
     name = "dig", help = "下载命令".trimIndent(), printHelpOnEmptyArgs = true
@@ -173,7 +173,7 @@ class Dig : CliktCommand(
             """
             解析失败, 未找到 '$it' 对应的画质, 请检查后重试
             可用选项: [${videoQualityMap.keys.joinToString(",")}]
-        """.trimIndent()
+            """.trimIndent()
         )
     }
 
@@ -225,7 +225,6 @@ class Dig : CliktCommand(
         }
     }
 
-
     private fun extractLangCode(str: String) = str.split(Regex("[，,]"))
         .filter { it.isNotEmpty() && it.isNotBlank() }
 
@@ -251,7 +250,7 @@ class Dig : CliktCommand(
     private val zhConvertTo by option(
         "-zhconvert-to", "-zt",
         help = "使用繁化姬转换的目标, 默认简体化, 详见: https://zhconvert.org/ , 可用 [${
-            Converter.values().joinToString(",") { it.code }
+        Converter.values().joinToString(",") { it.code }
         }]"
     ).convert { str ->
         Converter(str) ?: throw UsageError("转换目标 [$str] 输入错误! 可用选项: [${Converter.values().joinToString { it.code }}]")
@@ -283,7 +282,8 @@ class Dig : CliktCommand(
                         2. 可以单独指定一个分 P 如 '12', 也可指定分 P 范围 如 '1-4' '12-5'
                         3. 多个块可使用 ',' (全|半角皆可) 连接 如 '1-12,14-17', 逗号可尾随 如 '1,2,3,'
                         4. '0' 表示全部
-                        """.trimIndent(), this, context
+                    """.trimIndent(),
+                    this, context
                 )
             }
             if (!Regex("""(\d+(-\d+)?[,，]?)+""").matches(opt))
@@ -303,19 +303,25 @@ class Dig : CliktCommand(
         var trimmed = trimBiliNumber(url) ?: errorExit { "输入有误！请检查后重试" }
         echo("获取 @|yellow,bold [$trimmed]|@ 视频信息...".color)
         if (trimmed.startsWith("md", ignoreCase = true)) {
-            val info = client.getBangumiReviewInfo(mediaId = trimmed.lowercase().removePrefix("md").toIntOrNull()
-                ?: errorExit { "md 号输入有误！请检查后重试" })
+            val info = client.getBangumiReviewInfo(
+                mediaId = trimmed.lowercase().removePrefix("md").toIntOrNull()
+                    ?: errorExit { "md 号输入有误！请检查后重试" }
+            )
             trimmed = "ss" + info.result?.media?.seasonId
         }
         val info: Any = when {
             trimmed.startsWith("av", ignoreCase = true) -> client.getVideoInfo(trimmed.bv)
             trimmed.startsWith("bv", ignoreCase = true) -> client.getVideoInfo(trimmed)
             trimmed.startsWith("ss", ignoreCase = true) ->
-                client.getBangumiDetailedBySeason(seasonId = trimmed.lowercase().removePrefix("ss").toIntOrNull()
-                    ?: errorExit { "ss 号输入有误！请检查后重试" })
+                client.getBangumiDetailedBySeason(
+                    seasonId = trimmed.lowercase().removePrefix("ss").toIntOrNull()
+                        ?: errorExit { "ss 号输入有误！请检查后重试" }
+                )
             trimmed.startsWith("ep", ignoreCase = true) ->
-                client.getBangumiDetailedByEp(epId = trimmed.lowercase().removePrefix("ep").toIntOrNull()
-                    ?: errorExit { "ep 号输入有误！请检查后重试" })
+                client.getBangumiDetailedByEp(
+                    epId = trimmed.lowercase().removePrefix("ep").toIntOrNull()
+                        ?: errorExit { "ep 号输入有误！请检查后重试" }
+                )
             else -> errorExit { "解析链接失败！请检查后重试" }
         }
         when (info) {
@@ -408,10 +414,12 @@ class Dig : CliktCommand(
         episodes.forEachIndexed { index, episode ->
             if (index >= 1) repeat(2) { echo() }
             echo("@|bold 下载${info.data!!.type.toShow()}单集:|@ ${episode.toAnsi()}".color)
-            val result = client.fetchPgcDashTracks(episode.id ?: run {
-                echo("@|yellow 无法获取本集 epid, 跳过下载|@".color)
-                return@forEachIndexed
-            }).data ?: run {
+            val result = client.fetchPgcDashTracks(
+                episode.id ?: run {
+                    echo("@|yellow 无法获取本集 epid, 跳过下载|@".color)
+                    return@forEachIndexed
+                }
+            ).data ?: run {
                 echo("@|red 获取 ep$numId 视频流失败, 跳过下载|@".color)
                 return@forEachIndexed
             }
@@ -424,7 +432,6 @@ class Dig : CliktCommand(
                 keys = setOf(episode.id.toString(), info.data?.seasonId.toString())
             )
         }
-
     }
 
     /**
@@ -650,10 +657,12 @@ class Dig : CliktCommand(
                 tracks.forEachIndexed { idx, it ->
                     if (idx >= 1) echo()
                     echo("@|bold 正在下载：|@ ${it.languageName}[${it.language}]".color)
-                    val srt = client.getSubtitleContent(it.subtitleUrl ?: run {
-                        echo("@|red 无法获取当前字幕地址, 跳过下载|@".color)
-                        return@forEachIndexed
-                    }).body.encodeToSrt()
+                    val srt = client.getSubtitleContent(
+                        it.subtitleUrl ?: run {
+                            echo("@|red 无法获取当前字幕地址, 跳过下载|@".color)
+                            return@forEachIndexed
+                        }
+                    ).body.encodeToSrt()
                     val fileDst by lazy {
                         with(placeholderContext + it.placeHolderContext) {
                             buildFile(tracksPreference.fileDir.subtitleName)
@@ -680,7 +689,8 @@ class Dig : CliktCommand(
                                 @|bold 使用繁化姬转换服务即说明您业已同意其服务条款:|@ https://docs.zhconvert.org/license/
                                 @|bold 若需商业使用应按照其要求支付费用:|@ https://docs.zhconvert.org/commercial/
                                 @|bold 是否同意? |@
-                            """.trimIndent().color.toString(), default = false
+                                """.trimIndent().color.toString(),
+                                default = false
                             ).also {
                                 if (it != true) {
                                     echo("@|yellow 跳过转换... |@")
@@ -728,7 +738,8 @@ class Dig : CliktCommand(
                     """
                         @|magenta ==>|@ @|bold 视频流信息: 
                          -> 画质 ${tr.id} | 编码 ${tr.codec} | 帧率 ${tr.frameRate} F
-                         -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color
+                         -> 比特率 $bitrate | 大小 ${size.toShow()} |@
+                    """.trimIndent().color
                 )
                 videoStreamContext = tr.placeHolderContext
                 val context = placeholderContext + videoStreamContext
@@ -759,7 +770,8 @@ class Dig : CliktCommand(
                 echo(
                     """
                         @|magenta ==>|@ @|bold 音频流信息: 
-                         -> 比特率 $bitrate | 大小 ${size.toShow()} |@""".trimIndent().color
+                         -> 比特率 $bitrate | 大小 ${size.toShow()} |@
+                    """.trimIndent().color
                 )
                 audioStreamContext = tr.placeHolderContext
                 val context = placeholderContext + audioStreamContext
@@ -797,12 +809,14 @@ class Dig : CliktCommand(
             dst,
             filesRef = filesRef,
             onDuplicate = {
-                (prompt(text = "目标文件已经存在, 要覆盖吗? (y|n)", default = "n") { str ->
-                    when {
-                        str.matches(Regex("""y(es)?""", RegexOption.IGNORE_CASE)) -> true
-                        else -> false
-                    }
-                } ?: false).also {
+                (
+                    prompt(text = "目标文件已经存在, 要覆盖吗? (y|n)", default = "n") { str ->
+                        when {
+                            str.matches(Regex("""y(es)?""", RegexOption.IGNORE_CASE)) -> true
+                            else -> false
+                        }
+                    } ?: false
+                    ).also {
                     echo("选择了 @|yellow,bold ${if (it) "覆盖" else "不覆盖"}|@".color)
                     if (it && dst.exists()) {
                         Log.debug { "Deleting file at ${dst.absolutePath}" }

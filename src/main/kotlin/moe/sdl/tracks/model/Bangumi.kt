@@ -16,7 +16,7 @@ fun BangumiDetailed.toAnsi() = """
     @|bold  | 📆　更新状态　${if (publish?.isFinished == true) "已完结 共" else "已更新"} ${episodes.size} 话|@
     @|bold  | ⌚️　上次更新　${publish?.releaseTime ?: publish?.releaseDate ?: "暂无更新"}|@
     @|bold  | 🌟　评分　　　${rating?.score ?: "暂无"}|@
-    """.trimIndent().color
+""".trimIndent().color
 
 fun BangumiType.toShow(): String = when (this) {
     BangumiType.ANIME -> "番剧"

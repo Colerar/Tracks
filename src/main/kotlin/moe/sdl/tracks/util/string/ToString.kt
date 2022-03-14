@@ -1,14 +1,14 @@
 package moe.sdl.tracks.util.string
 
-import kotlin.math.pow
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.isDistantFuture
 import kotlinx.datetime.toLocalDateTime
+import kotlin.math.pow
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 @Suppress("NOTHING_TO_INLINE")
 internal inline fun Any?.toStringOrNull(): String? = this?.toString()
@@ -73,7 +73,7 @@ internal fun Long.toRelativeTime(
     val pastDate by lazy { past.toLocalDateTime(timeZone) }
     val monthAndDay by lazy {
         pastDate.date.monthNumber.padZero() + "-" +
-                pastDate.date.dayOfMonth.padZero()
+            pastDate.date.dayOfMonth.padZero()
     }
     return when {
         delta < 1.toDuration(DurationUnit.MINUTES) -> "刚刚"
@@ -94,7 +94,7 @@ internal fun Long.toAbsTime(
 
 fun LocalDateTime.toAbsTime() =
     year.toString() + "-" + monthNumber.padZero() + "-" + dayOfMonth.padZero() + " " +
-            hour.padZero() + ":" + minute.padZero() + ":" + second.padZero()
+        hour.padZero() + ":" + minute.padZero() + ":" + second.padZero()
 
 private const val BANDWIDTH_SCALE: Double = 1000.0
 
@@ -112,7 +112,6 @@ value class Bandwidth(
      */
     val kbps: Double
         get() = bps / BANDWIDTH_SCALE
-
 
     /**
      * `Mbps`
@@ -150,7 +149,6 @@ value class BytesBandwidth(
      */
     val kibPerS: Double
         get() = bytes / SIZE_SCALE
-
 
     /**
      * `MiB/s`

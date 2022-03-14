@@ -12,7 +12,6 @@ import io.ktor.client.features.defaultRequest
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
-import java.io.File
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonBuilder
@@ -26,6 +25,7 @@ import moe.sdl.yabapi.enums.LogLevel
 import moe.sdl.yabapi.storage.FileCookieStorage
 import okio.FileSystem
 import okio.Path.Companion.toPath
+import java.io.File
 
 @Suppress("NOTHING_TO_INLINE")
 private inline fun JsonBuilder.buildDefault() {

@@ -28,7 +28,7 @@ internal data class VideoResult(
             @|bold | 日　期 $date |@
             @|bold | ＵＰ主 $authorName|@
             @|bold | ▶️  $view  👍  $like  💰  $coin  ⭐  $favorite|@
-            """.trimIndent().color
+    """.trimIndent().color
 
     companion object {
         val EMPTY = VideoResult(
@@ -56,25 +56,25 @@ internal fun VideoResult(response: VideoInfoGetResponse): VideoResult {
     )
 }
 
-//@Serializable
-//internal data class VideoPartModel(
+// @Serializable
+// internal data class VideoPartModel(
 //    val part: Int = 1,
 //    val title: String = "",
 //    val duration: String = "--",
 //    val cid: Int = 1,
-//) {
+// ) {
 //    companion object {
 //        val EMPTY = VideoPartModel(
 //            title = "解析失败(╥﹏╥), 重试看看哟~"
 //        )
 //    }
-//}
+// }
 //
-//internal fun VideoPartModel(videoPart: VideoPart): VideoPartModel {
+// internal fun VideoPartModel(videoPart: VideoPart): VideoPartModel {
 //    return VideoPartModel(
 //        part = videoPart.part ?: 1,
 //        title = videoPart.name ?: "",
 //        duration = videoPart.duration?.toInt().toStringOrDefault { it.secondsToDuration() },
 //        cid = videoPart.cid ?: return VideoPartModel.EMPTY
 //    )
-//}
+// }

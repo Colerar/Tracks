@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-abstract class AbstractResponse{
+abstract class AbstractResponse {
     @SerialName("code") abstract val code: ZhConvertCode
     @SerialName("msg") abstract val msg: String
     @SerialName("data") abstract val data: ResponseBody

@@ -1,7 +1,5 @@
 package moe.sdl.tracks.util.string
 
-import kotlin.math.max
-import kotlin.math.min
 import kotlinx.atomicfu.AtomicLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -11,6 +9,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import moe.sdl.tracks.config.tracksPreference
+import kotlin.math.max
+import kotlin.math.min
 
 fun CoroutineScope.progressBar(
     cur: AtomicLong,
@@ -36,7 +36,7 @@ fun CoroutineScope.progressBar(
         val delta = (Clock.System.now() - start).inWholeMilliseconds
         val avg = if (delta > 0) Size(cur.value).toBandwidthMs(delta).toBytesBandwidth() else BytesBandwidth(0)
         str += "avg: " + avg.toShow().padEnd(10, ' ')
-        val etaSeconds =  if (avg.bytes > 0) (total - cur.value) / avg.bytes else 0
+        val etaSeconds = if (avg.bytes > 0) (total - cur.value) / avg.bytes else 0
         str += " eta: " + etaSeconds.toInt().secondsToDuration().padEnd(5, ' ')
         print(StringBuilder("\u0008").repeat(lastLen))
         print(str)

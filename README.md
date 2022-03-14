@@ -23,6 +23,8 @@ See: [INSTALL.md](docs/_INSTALL.md)
   - [X] 使用 FFmpeg cli 转封装
 - 下载
   - [X] 普通视频下载
+  - [X] PGC 视频下载
+  - [ ] 互动视频下载
   - [X] 指定分 P
   - [X] 断点续传
   - [ ] Aria2 支持

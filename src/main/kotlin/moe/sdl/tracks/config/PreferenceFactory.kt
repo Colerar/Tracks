@@ -1,6 +1,5 @@
 package moe.sdl.tracks.config
 
-import java.io.File
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -8,9 +7,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import moe.sdl.tracks.util.Log
 import moe.sdl.tracks.util.io.ensureCreate
+import java.io.File
 
 @Serializable
 internal abstract class Preference {
@@ -26,9 +25,11 @@ internal suspend inline fun <reified T : Preference> T.save() = mutex.withLock {
 
 internal inline fun <reified T : Preference> T.addShutdownSaveHook() {
     Log.debug { "Adding shutdown save hook for ${T::class.qualifiedName}" }
-    Runtime.getRuntime().addShutdownHook(Thread {
-        runBlocking { save() }
-    })
+    Runtime.getRuntime().addShutdownHook(
+        Thread {
+            runBlocking { save() }
+        }
+    )
 }
 
 internal suspend inline fun <reified T : Preference> getOrCreatePreference(default: T): T {
