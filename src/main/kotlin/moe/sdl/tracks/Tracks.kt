@@ -1,5 +1,6 @@
 package moe.sdl.tracks
 
+import com.github.ajalt.clikt.completion.completionOption
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.output.TermUi.echo
@@ -48,5 +49,9 @@ class MainCommand : CliktCommand(
     """.trimIndent(),
     printHelpOnEmptyArgs = true,
 ) {
+    init {
+        completionOption()
+    }
+
     override fun run() = Unit
 }
