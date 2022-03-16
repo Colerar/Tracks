@@ -4,13 +4,28 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.arguments.argument
-import com.github.ajalt.clikt.parameters.options.*
+import com.github.ajalt.clikt.parameters.options.convert
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.switch
+import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
-import io.ktor.client.*
+import io.ktor.client.HttpClient
 import kotlinx.atomicfu.AtomicRef
 import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.getAndUpdate
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import moe.sdl.tracks.config.client
 import moe.sdl.tracks.config.tracksPreference
 import moe.sdl.tracks.enums.DownloadType
@@ -19,17 +34,49 @@ import moe.sdl.tracks.enums.audioQualityMap
 import moe.sdl.tracks.enums.videoQualityMap
 import moe.sdl.tracks.external.zhconvert.Converter
 import moe.sdl.tracks.external.zhconvert.requestZhConvert
-import moe.sdl.tracks.model.*
-import moe.sdl.tracks.util.*
-import moe.sdl.tracks.util.io.*
+import moe.sdl.tracks.model.VideoResult
+import moe.sdl.tracks.model.printConsole
+import moe.sdl.tracks.model.toAnsi
+import moe.sdl.tracks.model.toMetadata
+import moe.sdl.tracks.model.toShow
+import moe.sdl.tracks.util.Log
+import moe.sdl.tracks.util.OsType
+import moe.sdl.tracks.util.PlaceholderContext
+import moe.sdl.tracks.util.basicContext
+import moe.sdl.tracks.util.buildFile
+import moe.sdl.tracks.util.color
+import moe.sdl.tracks.util.errorExit
+import moe.sdl.tracks.util.getCliPath
+import moe.sdl.tracks.util.infoExit
+import moe.sdl.tracks.util.io.configureForBili
+import moe.sdl.tracks.util.io.downloadFile
+import moe.sdl.tracks.util.io.downloadResumable
+import moe.sdl.tracks.util.io.ensureCreate
+import moe.sdl.tracks.util.io.fetchPgcDashTracks
+import moe.sdl.tracks.util.io.fetchVideoDashTracks
+import moe.sdl.tracks.util.io.getRemoteFileSize
+import moe.sdl.tracks.util.io.toNormalizedAbsPath
+import moe.sdl.tracks.util.osType
+import moe.sdl.tracks.util.placeHolderContext
+import moe.sdl.tracks.util.placeHolderResult
 import moe.sdl.tracks.util.string.Size
 import moe.sdl.tracks.util.string.progressBar
 import moe.sdl.tracks.util.string.toStringOrDefault
 import moe.sdl.tracks.util.string.trimBiliNumber
-import moe.sdl.yabapi.api.*
+import moe.sdl.yabapi.api.getBangumiDetailedByEp
+import moe.sdl.yabapi.api.getBangumiDetailedBySeason
+import moe.sdl.yabapi.api.getBangumiReviewInfo
+import moe.sdl.yabapi.api.getSubtitleContent
+import moe.sdl.yabapi.api.getVideoInfo
+import moe.sdl.yabapi.api.getVideoPlayerInfo
 import moe.sdl.yabapi.data.GeneralCode
 import moe.sdl.yabapi.data.bangumi.BangumiDetailedResponse
-import moe.sdl.yabapi.data.stream.*
+import moe.sdl.yabapi.data.stream.AbstractStreamData
+import moe.sdl.yabapi.data.stream.CodecId
+import moe.sdl.yabapi.data.stream.DashStream
+import moe.sdl.yabapi.data.stream.DashTrack
+import moe.sdl.yabapi.data.stream.QnQuality
+import moe.sdl.yabapi.data.stream.VideoStreamData
 import moe.sdl.yabapi.data.video.SubtitleTrack
 import moe.sdl.yabapi.data.video.VideoInfoGetResponse
 import moe.sdl.yabapi.data.video.encodeToSrt
@@ -50,16 +97,6 @@ class Dig : CliktCommand(
 ) {
 
     // region INIT & Parse Option / Argument
-
-    init {
-        val errorTip =
-            "尝试获取 ffmpeg 路径失败! 若未下载可前往 https://www.ffmpeg.org/ 下载, 已下载的可通过 'tracks config ffmpeg=path/to/file' 指定路径"
-        if (tracksPreference.programDir.ffmpeg == null) {
-            val path = getCliPath("ffmpeg") ?: errorExit { errorTip }
-            TermUi.echo("@|yellow 自动检测到 FFmpeg 路径:|@ $path".color)
-            tracksPreference.programDir.ffmpeg = path
-        }
-    }
 
     private val url by argument("url", "B 站视频地址或 av BV ss ep md 等号码")
 
@@ -259,6 +296,7 @@ class Dig : CliktCommand(
     // endregion
 
     override fun run(): Unit = runBlocking {
+        checkFFmpeg()
         var trimmed = trimBiliNumber(url) ?: errorExit { "输入有误！请检查后重试" }
         echo("获取 @|yellow,bold [$trimmed]|@ 视频信息...".color)
         if (trimmed.startsWith("md", ignoreCase = true)) {
@@ -287,6 +325,21 @@ class Dig : CliktCommand(
             is VideoInfoGetResponse -> processVideo(info, this)
             is BangumiDetailedResponse -> processBangumi(info, trimmed, this)
             else -> infoExit { "暂不支持该类解析！" }
+        }
+    }
+
+    private fun checkFFmpeg() {
+        if (tracksPreference.programDir.ffmpeg == null) {
+            val path = getCliPath("ffmpeg") ?: errorExit {
+                val tip = when (osType) {
+                    OsType.MAC -> "可通过 brew install ffmpeg 安装"
+                    OsType.LINUX -> "可通过系统包管理安装"
+                    else -> "可前往 https://www.ffmpeg.org/ 下载"
+                }
+                "尝试获取 ffmpeg 路径失败! 若未安装$tip, 已安装的可通过 'tracks config ffmpeg=/path/to/file' 指定路径"
+            }
+            TermUi.echo("@|yellow 自动检测到 FFmpeg 路径:|@ $path".color)
+            tracksPreference.programDir.ffmpeg = path
         }
     }
 

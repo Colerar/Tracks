@@ -50,7 +50,7 @@ class MainCommand : CliktCommand(
     printHelpOnEmptyArgs = true,
 ) {
     init {
-        completionOption()
+        completionOption("-g", "-generate-completion", help = "为 bash|zsh|fish 生成补全文件")
     }
 
     override fun run() = Unit
