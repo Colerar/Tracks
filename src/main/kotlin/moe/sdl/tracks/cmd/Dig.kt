@@ -644,6 +644,7 @@ class Dig : CliktCommand(
                 val subtitles = playerInfo.await().data?.subtitle?.list
                 if (subtitles.isNullOrEmpty()) {
                     echo("@|yellow 无可用字幕, 跳过下载...|@".color)
+                    echo()
                     return@subtitle
                 }
                 val langs = subtitles.joinToString { "${it.languageName}[${it.language}]" }

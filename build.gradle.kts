@@ -1,6 +1,11 @@
+import com.github.gmazzo.gradle.plugins.BuildConfigSourceSet
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+
 plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
+    id("com.github.gmazzo.buildconfig") version "3.0.3"
     id("org.jlleitschuh.gradle.ktlint")
     id("org.jlleitschuh.gradle.ktlint-idea")
     id("com.github.johnrengelman.shadow")
@@ -9,6 +14,20 @@ plugins {
 
 group = "moe.sdl.tracks"
 version = "1.2.1"
+
+val commitHash by lazy {
+    val commitHashCommand = "git rev-parse --short HEAD"
+    Runtime.getRuntime().exec(commitHashCommand).inputStream.bufferedReader().readLine() ?: "UnkCommit"
+}
+
+val branch by lazy {
+    val branchCommand = "git rev-parse --abbrev-ref HEAD"
+    Runtime.getRuntime().exec(branchCommand).inputStream.bufferedReader().readLine() ?: "UnkBranch"
+}
+
+val time: Long by lazy {
+    ZonedDateTime.now(ZoneOffset.UTC).toInstant().epochSecond
+}
 
 repositories {
     mavenCentral()
@@ -78,4 +97,21 @@ tasks.installDist {
             if (source.isFile) source.copyTo(target, true)
         }
     }
+}
+
+fun BuildConfigSourceSet.string(name: String, value: String) = buildConfigField("String", name, "\"$value\"")
+fun BuildConfigSourceSet.stringNullable(name: String, value: String?) =
+    buildConfigField("String?", name, value?.let { "\"$value\"" } ?: "null")
+
+fun BuildConfigSourceSet.long(name: String, value: Long) = buildConfigField("long", name, value.toString())
+fun BuildConfigSourceSet.longNullable(name: String, value: Long?) =
+    buildConfigField("Long?", name, value?.let { "$value" } ?: "null")
+
+buildConfig {
+    packageName("$group.config")
+    useKotlinOutput { topLevelConstants = true }
+    string("VERSION", "$version")
+    string("COMMIT_HASH", commitHash)
+    string("BUILD_BRANCH", branch)
+    long("BUILD_EPOCH_TIME", time)
 }
