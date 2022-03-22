@@ -5,7 +5,7 @@ import java.time.ZonedDateTime
 plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
-    id("com.github.gmazzo.buildconfig") version "3.0.3"
+    id("com.github.gmazzo.buildconfig")
     id("org.jlleitschuh.gradle.ktlint")
     id("org.jlleitschuh.gradle.ktlint-idea")
     id("com.github.johnrengelman.shadow")
@@ -13,7 +13,7 @@ plugins {
 }
 
 group = "moe.sdl.tracks"
-version = "1.2.1"
+version = "1.2.2"
 
 val commitHash by lazy {
     val commitHashCommand = "git rev-parse --short HEAD"

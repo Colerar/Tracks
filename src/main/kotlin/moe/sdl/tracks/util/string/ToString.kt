@@ -7,6 +7,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.isDistantFuture
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.pow
+import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
@@ -95,6 +96,13 @@ internal fun Long.toAbsTime(
 fun LocalDateTime.toAbsTime() =
     year.toString() + "-" + monthNumber.padZero() + "-" + dayOfMonth.padZero() + " " +
         hour.padZero() + ":" + minute.padZero() + ":" + second.padZero()
+
+fun Duration.toHms(): String = toComponents { hours, minutes, seconds, _ ->
+    val h = hours.toString().padStart(2, '0')
+    val m = minutes.toString().padStart(2, '0')
+    val s = seconds.toString().padStart(2, '0')
+    "$h:$m:$s"
+}
 
 private const val BANDWIDTH_SCALE: Double = 1000.0
 

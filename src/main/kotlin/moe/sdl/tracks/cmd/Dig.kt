@@ -803,7 +803,7 @@ class Dig : CliktCommand(
 
         // Mux video and audio
         when {
-            skipMux -> echo("@|cyan,bold 根据选项跳过混流...|@".color)
+            skipMux || only != null -> echo("@|cyan,bold 根据选项跳过混流...|@".color)
             videoDst?.exists() == true || audioDst?.exists() == true -> {
                 echo("@|magenta ==>|@ @|bold 开始混流...|@".color)
                 val context = placeholderContext + videoStreamContext + audioStreamContext
@@ -888,7 +888,9 @@ class Dig : CliktCommand(
                 printJob.cancel()
             }.onSuccess {
                 echo()
-                echo("下载完成! 文件路径: ${dst.toPath().normalize().toFile().absolutePath}")
+                if (!onlyArtifact || only != null) {
+                    echo("下载完成! 文件路径: ${dst.toPath().normalize().toFile().absolutePath}")
+                }
             }.onFailure {
                 if (it is CancellationException) throw it else echo(it)
             }

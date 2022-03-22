@@ -33,11 +33,17 @@ fun CoroutineScope.progressBar(
             str += " "
         }
         str += String.format("%.1f%%", min(rate * 100, 100.0)).padEnd(7, ' ')
-        val delta = (Clock.System.now() - start).inWholeMilliseconds
+        val deltaDuration = Clock.System.now() - start
+        val delta = deltaDuration.inWholeMilliseconds
         val avg = if (delta > 0) Size(cur.value).toBandwidthMs(delta).toBytesBandwidth() else BytesBandwidth(0)
         str += "avg: " + avg.toShow().padEnd(10, ' ')
-        val etaSeconds = if (avg.bytes > 0) (total - cur.value) / avg.bytes else 0
-        str += " eta: " + etaSeconds.toInt().secondsToDuration().padEnd(5, ' ')
+        val etaSeconds: Double = if (avg.bytes > 0L) (total.toDouble() - cur.value) / avg.bytes else 0.0
+        str += if (etaSeconds <= 0.1 && avg.bytes > 1) {
+            " costed: ${deltaDuration.toHms()}"
+        } else {
+            " eta: " + etaSeconds.toInt().secondsToDuration().padEnd(5, ' ')
+        }
+
         print(StringBuilder("\u0008").repeat(lastLen))
         print(str)
         lastLen = str.length
