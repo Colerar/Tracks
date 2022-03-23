@@ -3,7 +3,7 @@
 
 
 ### Setup for tracks
-set -l tracks_subcommands 'dig loginqr config'
+set -l tracks_subcommands 'dig loginqr config version'
 
 ## Options for tracks
 complete -c tracks -n "not __fish_seen_subcommand_from $tracks_subcommands" -s g -o generate-completion -d '为 bash|zsh|fish 生成补全文件'
@@ -66,4 +66,12 @@ complete -c tracks -n "__fish_seen_subcommand_from config" -s h -l help -d 'Show
 
 ## Arguments for config
 complete -c tracks -n "__fish_seen_subcommand_from config" -d '表达式'
+
+
+### Setup for version
+complete -c tracks -f -n __fish_use_subcommand -a version -d '显示 Tracks 版本'
+
+## Options for version
+complete -c tracks -n "__fish_seen_subcommand_from version" -s l -o long -s s -o short -d '显示长版本号, 默认关闭'
+complete -c tracks -n "__fish_seen_subcommand_from version" -s h -l help -d 'Show this message and exit'
 
