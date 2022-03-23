@@ -3,10 +3,19 @@ name: Gradle Build
 on:
   push:
     branches: [cli]
+    paths:
+      - 'src/**'
+      - '*.kts'
+      - '*.properties'
   pull_request:
     branches: [cli]
+    paths:
+      - 'src/**'
+      - '*.kts'
+      - '*.properties'
+
 jobs:
-  
+
   build:
 
     strategy:
