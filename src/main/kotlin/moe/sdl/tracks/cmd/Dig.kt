@@ -694,8 +694,8 @@ class Dig : CliktCommand(
 
                     suspend fun File.writeTextWithBuff(text: String) {
                         ensureCreate()
-                        sink().use { sink ->
-                            sink.buffer().writeString(text, Charsets.UTF_8)
+                        sink().buffer().use {
+                            it.writeUtf8(text)
                         }
                     }
 
