@@ -127,6 +127,10 @@ class Dig : CliktCommand(
         "-only-cover" to DownloadType.COVER,
     )
 
+    val downloadCover by lazy {
+        (only == null && downloads.contains(DownloadType.COVER)) || only == DownloadType.COVER
+    }
+
     private val onlyInfo by option(
         "-no-down", "-only-info", "-nd", "-oi", help = "仅输出信息, 不下载"
     ).flag()
@@ -364,7 +368,7 @@ class Dig : CliktCommand(
         echo("已选择: @|bold ${parts.joinToString { it.part.toString() }}|@".color)
 
         // download cover
-        if (downloads.contains(DownloadType.COVER)) {
+        if (downloadCover) {
             val context = basicContext + info.data!!.placeHolderContext
             val dst = context.buildFile(tracksPreference.fileDir.coverName)
             downloadCover(info.data!!.cover, dst)
@@ -403,7 +407,7 @@ class Dig : CliktCommand(
         if (onlyInfo) return
         echo()
 
-        downloadCover(info.data!!.cover, dst)
+        if (downloadCover) downloadCover(info.data!!.cover, dst)
         episodes = when {
             !targetParts.isNullOrEmpty() && targetParts!!.contains(0) -> episodes
             targetParts.isNullOrEmpty() && isEpisode ->
