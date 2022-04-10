@@ -92,7 +92,11 @@ val BangumiDetailed.placeHolderResult: PlaceholderContext
     get() = PlaceholderContext(
         "video:id" to { "ss$seasonId" },
         "video:type" to { type.toShow() },
-        "video:duration" to { this.episodes.mapNotNull { it.duration }.reduce(Long::plus) },
+        "video:duration" to {
+            if (episodes.isEmpty()) {
+                "--"
+            } else episodes.mapNotNull { it.duration }.reduce(Long::plus)
+        },
         "video:title" to { title },
         "video:author" to { owner?.username ?: "-" },
         "video:date" to { this.publish?.releaseDate ?: this.publish?.releaseTime ?: "-" }

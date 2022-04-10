@@ -1,12 +1,14 @@
 package moe.sdl.tracks.model
 
 import kotlinx.serialization.Serializable
+import moe.sdl.tracks.config.emoji
 import moe.sdl.tracks.util.color
 import moe.sdl.tracks.util.string.secondsToDuration
 import moe.sdl.tracks.util.string.toAbsTime
 import moe.sdl.tracks.util.string.toStringOrDefault
 import moe.sdl.tracks.util.string.toStringWithUnit
 import moe.sdl.yabapi.data.video.VideoInfoGetResponse
+import org.fusesource.jansi.Ansi
 
 @Serializable
 internal data class VideoResult(
@@ -22,13 +24,19 @@ internal data class VideoResult(
     val date: String = "--",
 //    val parts: List<VideoPartModel> = emptyList(),
 ) {
-    fun toAnsi() = """
-            @|cyan,bold =================== 视频信息 ===================|@
-            @|bold $title|@
-            @|bold | 日　期 $date |@
-            @|bold | ＵＰ主 $authorName|@
-            @|bold | ▶️  $view  👍  $like  💰  $coin  ⭐  $favorite|@
-    """.trimIndent().color
+    fun toAnsi(): Ansi {
+        val viewK = emoji("▶️", "播放")
+        val likeK = emoji("👍", "点赞")
+        val coinK = emoji("💰", "投币")
+        val favoriteK = emoji("⭐️", "收藏")
+        return """
+                @|cyan,bold =================== 视频信息 ===================|@
+                @|bold $title|@
+                @|bold | 日　期 $date |@
+                @|bold | ＵＰ主 $authorName|@
+                @|bold | $viewK  $view  $likeK  $like  $coinK  $coin  $favoriteK  $favorite|@
+        """.trimIndent().color
+    }
 
     companion object {
         val EMPTY = VideoResult(
@@ -52,29 +60,5 @@ internal fun VideoResult(response: VideoInfoGetResponse): VideoResult {
             .toStringOrDefault { it.secondsToDuration() },
         authorName = (data.owner?.name ?: data.authorName).toStringOrDefault(),
         date = (data.releaseDate ?: data.uploadDate).toStringOrDefault { it.toAbsTime() },
-//        parts = data.parts.map { VideoPartModel(it) }
     )
 }
-
-// @Serializable
-// internal data class VideoPartModel(
-//    val part: Int = 1,
-//    val title: String = "",
-//    val duration: String = "--",
-//    val cid: Int = 1,
-// ) {
-//    companion object {
-//        val EMPTY = VideoPartModel(
-//            title = "解析失败(╥﹏╥), 重试看看哟~"
-//        )
-//    }
-// }
-//
-// internal fun VideoPartModel(videoPart: VideoPart): VideoPartModel {
-//    return VideoPartModel(
-//        part = videoPart.part ?: 1,
-//        title = videoPart.name ?: "",
-//        duration = videoPart.duration?.toInt().toStringOrDefault { it.secondsToDuration() },
-//        cid = videoPart.cid ?: return VideoPartModel.EMPTY
-//    )
-// }

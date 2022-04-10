@@ -87,12 +87,24 @@ private inline fun <T : Any?> ArgumentVariable(
     crossinline conversion: CliktCommand.(String) -> T,
 ) = ArgumentOperation(
     desc = name,
-    onQuery = { TermUi.echo("当前$name：${prop.getter.call()}") },
+    onQuery = { TermUi.echo("当前${name.paddingSpace(ignoreEnd = true)}：${prop.getter.call()}") },
     onSet = {
         prop.setter.call(conversion(it))
-        TermUi.echo("${name}设置为：${prop.getter.call()}")
+        TermUi.echo("${name.paddingSpace(ignoreStart = true)}设置为：${prop.getter.call()}")
     }
 )
+
+private val enPattern by lazy {
+    "QWERTYUIOPASDFGHJKLZZZZZXCVBNMqwertyuiopasdfghjklzxcvbnmm"
+}
+
+private fun String.paddingSpace(ignoreStart: Boolean = false, ignoreEnd: Boolean = false): String {
+    if (isBlank()) return this
+    var str = this
+    if (!ignoreStart && enPattern.contains(first())) str = " $str"
+    if (!ignoreEnd && enPattern.contains(last())) str = "$str "
+    return str
+}
 
 @Suppress("FunctionName")
 private inline fun ArgumentVariableString(
@@ -129,6 +141,7 @@ private val keyMap by lazy {
             if (FFmpeg(abs).isFFmpeg) it
             else throw UsageError("@|red 输入路径非 FFmpeg 路径: $abs|@".color.toString())
         }),
+        "emoji" to ArgumentBoolean("是否开启 emoji", tracksPreference::emoji),
         "proxy-enable" to ArgumentBoolean("代理状态", tracksPreference.proxy::enable),
         "proxy-url" to ArgumentVariableStringNullable("HTTP 代理地址", tracksPreference.proxy::url),
         "name-cover" to ArgumentVariableString("封面名称样式", tracksPreference.fileDir::coverName),

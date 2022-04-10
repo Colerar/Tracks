@@ -19,6 +19,7 @@ internal class TracksPreference(
     val programDir: Program = Program(),
     val show: Show = Show(),
     val proxy: Proxy = Proxy(),
+    var emoji: Boolean = true,
     var first: Boolean = true,
     var zhConvertAlert: Boolean = true,
 ) : Preference() {
@@ -52,3 +53,5 @@ internal class TracksPreference(
         var url: String? = null,
     )
 }
+
+fun emoji(str: String, fallback: String = "") = if (tracksPreference.emoji) str else fallback

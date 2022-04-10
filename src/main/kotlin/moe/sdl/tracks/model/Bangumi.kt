@@ -1,21 +1,24 @@
 package moe.sdl.tracks.model
 
 import com.github.ajalt.clikt.output.TermUi
+import moe.sdl.tracks.config.emoji
 import moe.sdl.tracks.consts.PART_SHOW_LIMIT
 import moe.sdl.tracks.util.color
 import moe.sdl.tracks.util.string.secondsToDuration
+import moe.sdl.tracks.util.string.toRelativeTime
 import moe.sdl.tracks.util.string.toStringOrDefault
 import moe.sdl.yabapi.data.bangumi.BangumiDetailed
 import moe.sdl.yabapi.data.bangumi.BangumiEpisode
 import moe.sdl.yabapi.data.bangumi.BangumiType
+import kotlin.math.min
 
 fun BangumiDetailed.toAnsi() = """
     @|cyan,bold =================== ${type.toShow()}信息 ===================|@
     @|bold  $title|@
-    @|bold  | 💸　会员要求　${if (payment == null) "免费" else payment?.vipPromotion ?: "不明"}|@
-    @|bold  | 📆　更新状态　${if (publish?.isFinished == true) "已完结 共" else "已更新"} ${episodes.size} 话|@
-    @|bold  | ⌚️　上次更新　${publish?.releaseTime ?: publish?.releaseDate ?: "暂无更新"}|@
-    @|bold  | 🌟　评分　　　${rating?.score ?: "暂无"}|@
+    @|bold  | ${emoji("💸　")}会员要求　${if (payment == null) "免费" else payment?.vipPromotion ?: "不明"}|@
+    @|bold  | ${emoji("📆　")}更新状态　${if (publish?.isFinished == true) "已完结 共" else "已更新"} ${episodes.size} 话|@
+    @|bold  | ${emoji("⌚️　")}上次更新　${episodes.lastOrNull()?.releaseTime?.toRelativeTime() ?: "暂无更新"}|@
+    @|bold  | ${emoji("🌟　")}评分　　　${rating?.score ?: "暂无"}|@
 """.trimIndent().color
 
 fun BangumiType.toShow(): String = when (this) {
@@ -36,11 +39,15 @@ fun BangumiEpisode.toAnsi(): String {
 
 fun List<BangumiEpisode>.printConsole(type: BangumiType, showAll: Boolean) {
     TermUi.echo("@|bold 目标${type.toShow()}共有|@ @|yellow,bold $size|@ @|bold 集|@".color)
-    val filtered = filterIndexed { idx, _ ->
-        idx <= PART_SHOW_LIMIT - 2 || idx == lastIndex || showAll
+    val tail = this.subList(0, min(this.size, PART_SHOW_LIMIT - 1))
+    val last = this.lastOrNull() ?: return
+
+    tail.forEach {
+        TermUi.echo("- ${it.toAnsi()}")
     }
-    filtered.forEachIndexed { idx, ep ->
-        if (idx == filtered.lastIndex && idx != 0 && !showAll) TermUi.echo(" ......")
-        TermUi.echo("- ${ep.toAnsi()}")
+
+    if (tail.lastIndex != lastIndex) {
+        TermUi.echo(" ......")
+        TermUi.echo("- ${last.toAnsi()}")
     }
 }
