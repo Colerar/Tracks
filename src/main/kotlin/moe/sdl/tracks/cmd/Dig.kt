@@ -297,6 +297,9 @@ class Dig : CliktCommand(
                 }.flatten().distinct().toList()
         }
 
+    private val latestEpisode by option("-last-part", "-latest-episode", "-lp", help = "是否选择最新/最后分P")
+        .flag("-not-last-part", "-nlp")
+
     // endregion
 
     override fun run(): Unit = runBlocking {
@@ -359,13 +362,25 @@ class Dig : CliktCommand(
         if (onlyInfo) return
         echo()
 
-        // '0' means ALL, i.e., keep all origin, so here only filter for non-zero input
-        if (!targets.contains(0)) {
-            parts = parts.filter {
-                targets.contains(it.part)
+        run partFilter@{
+
+            // if latest episode option enabled, select last ep
+            if (latestEpisode) {
+                parts = buildList {
+                    add(parts.lastOrNull() ?: return@buildList)
+                }
+                return@partFilter
             }
+
+            // '0' means ALL, i.e., keep all origin, so here only filter for non-zero input
+            if (!targets.contains(0)) {
+                parts = parts.filter {
+                    targets.contains(it.part)
+                }
+            }
+
+            echo("已选择: @|bold ${parts.joinToString { it.part.toString() }}|@".color)
         }
-        echo("已选择: @|bold ${parts.joinToString { it.part.toString() }}|@".color)
 
         // download cover
         if (downloadCover) {
@@ -373,6 +388,8 @@ class Dig : CliktCommand(
             val dst = context.buildFile(tracksPreference.fileDir.coverName)
             downloadCover(info.data!!.cover, dst)
         }
+
+        if (parts.isEmpty()) infoExit { "无可用分P下载，退出下载。" }
 
         parts.forEachIndexed { idx, part ->
             if (idx >= 1) repeat(2) { echo() }
@@ -408,19 +425,36 @@ class Dig : CliktCommand(
         echo()
 
         if (downloadCover) downloadCover(info.data!!.cover, dst)
+
+        /**
+         * if target part is specified or latest episode enabled.
+         * The part is 'decided'
+         */
+        val decidedPart = !targetParts.isNullOrEmpty() || latestEpisode
+
         episodes = when {
-            !targetParts.isNullOrEmpty() && targetParts!!.contains(0) -> episodes
-            targetParts.isNullOrEmpty() && isEpisode ->
-                listOf(episodes.firstOrNull { it.id == numId } ?: infoExit { "无法找到 ep$numId, 退出下载" })
-            targetParts.isNullOrEmpty() && isSeason -> {
-                echo("@|yellow 未选择集数, 默认下载 P1. |@".color)
-                listOf(episodes.first())
+            // not decided and is season number, download first episode
+            !decidedPart && isSeason -> {
+                echo("@|yellow 未指定集数，默认选择第一集|@".color)
+                listOf(episodes.firstOrNull() ?: infoExit { "无第一集，退出下载。" })
             }
-            !targetParts.isNullOrEmpty() && (isSeason || isEpisode) -> {
-                if (targetParts!!.contains(0)) episodes else
-                    episodes.filterIndexed { index, _ ->
-                        targetParts!!.contains(index + 1)
+            // not decided and is episode number, download this episode
+            !decidedPart && isEpisode ->
+                listOf(episodes.firstOrNull { it.id == numId } ?: infoExit { "无法找到 ep$numId, 退出下载" })
+            // if decided, download follow rules
+            decidedPart -> {
+                if (latestEpisode) {
+                    listOf(episodes.lastOrNull() ?: infoExit { "无最后一集，退出下载。" })
+                } else {
+                    // if target part is decided, and parts has 0, download entirely
+                    if (targetParts?.contains(0) == true) {
+                        episodes
+                    } else {
+                        episodes.filterIndexed { index, _ ->
+                            targetParts!!.contains(index + 1)
+                        }
                     }
+                }
             }
             else -> errorExit(withHelp = false) { "集数选择遇到了意料外的情况, 可能是无可用集数" }
         }
