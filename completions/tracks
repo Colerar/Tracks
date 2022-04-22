@@ -212,6 +212,11 @@ _tracks_dig() {
           [[ ${i} -gt COMP_CWORD ]] && in_param='-parts' || in_param=''
           continue
           ;;
+        -last-part|-latest-episode|-lp|-not-last-part|-nlp)
+          __skip_opt_eq
+          in_param=''
+          continue
+          ;;
         -h|--help)
           __skip_opt_eq
           in_param=''
@@ -229,7 +234,7 @@ _tracks_dig() {
   done
   local word="${COMP_WORDS[$COMP_CWORD]}"
   if [[ "${word}" =~ ^[-] ]]; then
-    COMPREPLY=($(compgen -W '-v -video -vn -no-video -a -audio -an -no-audio -s -subtitle -sn -no-subtitle -c -cover -cn -no-cover -vo -ao -so -co -only-video -only-audio -only-subtitle -only-cover -no-down -only-info -nd -oi -multipart -mt -qe -qn -qnd -quality-exact -quality-near -quality-near-down -qv -video-quality -videocodec -codec -cv -qa -audio-quality -sub-lang -sl -sub-loose -sub-loose-match -slm -sub-strict -ss -sub-weird -sw -sub-fallback -sf -zhconvert-enable -ze -zhconvert-disable -zd -zhconvert-to -zt -zhconvert-keep-origin -zhconvert-keep -zk -zhconvert-only-artifact -zhconvert-clean -zoa -zc -clean-up -only-artifact -oa -keep-material -km -skip-mux -sm -mux -m -pd -part-detail -show-all-parts -p -part -parts -h --help' -- "${word}"))
+    COMPREPLY=($(compgen -W '-v -video -vn -no-video -a -audio -an -no-audio -s -subtitle -sn -no-subtitle -c -cover -cn -no-cover -vo -ao -so -co -only-video -only-audio -only-subtitle -only-cover -no-down -only-info -nd -oi -multipart -mt -qe -qn -qnd -quality-exact -quality-near -quality-near-down -qv -video-quality -videocodec -codec -cv -qa -audio-quality -sub-lang -sl -sub-loose -sub-loose-match -slm -sub-strict -ss -sub-weird -sw -sub-fallback -sf -zhconvert-enable -ze -zhconvert-disable -zd -zhconvert-to -zt -zhconvert-keep-origin -zhconvert-keep -zk -zhconvert-only-artifact -zhconvert-clean -zoa -zc -clean-up -only-artifact -oa -keep-material -km -skip-mux -sm -mux -m -pd -part-detail -show-all-parts -p -part -parts -last-part -latest-episode -lp -not-last-part -nlp -h --help' -- "${word}"))
     return
   fi
 
@@ -280,6 +285,8 @@ _tracks_dig() {
     -show-all-parts)
       ;;
     -parts)
+      ;;
+    -latest-episode)
       ;;
     --help)
       ;;

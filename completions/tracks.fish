@@ -35,6 +35,7 @@ complete -c tracks -n "__fish_seen_subcommand_from dig" -o clean-up -o only-arti
 complete -c tracks -n "__fish_seen_subcommand_from dig" -o skip-mux -o sm -o mux -s m -d '是否跳过混流'
 complete -c tracks -n "__fish_seen_subcommand_from dig" -o pd -o part-detail -o show-all-parts -d '显示所有分P, 默认关闭'
 complete -c tracks -n "__fish_seen_subcommand_from dig" -s p -o part -o parts -r -d '视频分 P, 支持范围选择, 形如 \'3-5\', \'0\' 表示全部'
+complete -c tracks -n "__fish_seen_subcommand_from dig" -o last-part -o latest-episode -o lp -o not-last-part -o nlp -d '是否选择最新/最后分P'
 complete -c tracks -n "__fish_seen_subcommand_from dig" -s h -l help -d 'Show this message and exit'
 
 ## Arguments for dig
