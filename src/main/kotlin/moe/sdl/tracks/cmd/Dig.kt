@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.defaultLazy
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.switch
@@ -204,7 +205,7 @@ class Dig : CliktCommand(
             }
     }.default(listOf(CodecId.AVC, CodecId.HEVC, CodecId.AV1))
 
-    private val _audioQuality by option(
+    private val audioQuality by option(
         "-qa", "-audio-quality",
         help = "音频质量, 支持 64kbps - 320kbps 以及 dolby e-ac-3, 可搭配 -quality-xxx使用, 可用选项: ${audioQualityMap.keys.joinToString()}"
     ).convert {
@@ -214,13 +215,9 @@ class Dig : CliktCommand(
             可用选项 ${audioQualityMap.keys.joinToString()}
             """.trimIndent()
         )
-    }
-
-    private val audioQuality by lazy {
-        _audioQuality ?: run {
-            echo("@|yellow 未指定音质, 默认选择可下载的最高音质|@".color)
-            QnQuality.AUDIO_DOLBY
-        }
+    }.defaultLazy {
+        echo("@|yellow 未指定音质, 默认选择可下载的最高音质|@".color)
+        QnQuality.AUDIO_FLAC
     }
 
     private fun extractLangCode(str: String) = str.split(Regex("[，,]"))
@@ -587,6 +584,7 @@ class Dig : CliktCommand(
         val audios = buildList {
             addAll(dash.audios)
             dash.dolby?.audio?.forEach { add(it) }
+            dash.flac?.audio?.let { add(it) }
         }
         val target = audios.mapNotNull { it.id }.asSequence().filterByOpt(audioQuality)
         return audios.firstOrNull { it.id == target }
