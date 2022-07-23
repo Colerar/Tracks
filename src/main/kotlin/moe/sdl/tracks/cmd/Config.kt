@@ -2,7 +2,6 @@ package moe.sdl.tracks.cmd
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.UsageError
-import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.convert
 import moe.sdl.tracks.config.tracksPreference
@@ -87,10 +86,10 @@ private inline fun <T : Any?> ArgumentVariable(
     crossinline conversion: CliktCommand.(String) -> T,
 ) = ArgumentOperation(
     desc = name,
-    onQuery = { TermUi.echo("当前${name.paddingSpace(ignoreEnd = true)}：${prop.getter.call()}") },
+    onQuery = { println("当前${name.paddingSpace(ignoreEnd = true)}：${prop.getter.call()}") },
     onSet = {
         prop.setter.call(conversion(it))
-        TermUi.echo("${name.paddingSpace(ignoreStart = true)}设置为：${prop.getter.call()}")
+        println("${name.paddingSpace(ignoreStart = true)}设置为：${prop.getter.call()}")
     }
 )
 

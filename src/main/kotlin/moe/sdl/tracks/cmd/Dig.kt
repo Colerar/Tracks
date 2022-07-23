@@ -2,7 +2,6 @@ package moe.sdl.tracks.cmd
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.UsageError
-import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
@@ -342,7 +341,7 @@ class Dig : CliktCommand(
                 }
                 "尝试获取 ffmpeg 路径失败! 若未安装$tip, 已安装的可通过 'tracks config ffmpeg=/path/to/file' 指定路径"
             }
-            TermUi.echo("@|yellow 自动检测到 FFmpeg 路径:|@ $path".color)
+            println("@|yellow 自动检测到 FFmpeg 路径:|@ $path".color)
             tracksPreference.programDir.ffmpeg = path
         }
     }

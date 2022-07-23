@@ -3,7 +3,6 @@ package moe.sdl.tracks
 import com.github.ajalt.clikt.completion.completionOption
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
-import com.github.ajalt.clikt.output.TermUi.echo
 import moe.sdl.tracks.cmd.Config
 import moe.sdl.tracks.cmd.Dig
 import moe.sdl.tracks.cmd.Login
@@ -20,7 +19,7 @@ import java.nio.channels.UnresolvedAddressException
 
 fun main(args: Array<String>) {
     if (tracksPreference.first && osType == OsType.WINDOWS) {
-        echo(
+        println(
             """ 
             @|bold 检测到您是首次运行本程序, 并且当前运行环境是 Windows|@
             @|bold 为了更好的使用体验, 强烈建议您, 不要将本程序运行于默认 cmd / powershell 上|@
@@ -36,8 +35,8 @@ fun main(args: Array<String>) {
             .subcommands(Dig(), Login(), Config(), Version())
             .main(args)
     } catch (e: UnresolvedAddressException) {
-        echo("@|red,bold 网络错误！可能是网络不稳定或已离线|@".color)
-        echo(e)
+        println("@|red,bold 网络错误！可能是网络不稳定或已离线|@".color)
+        println(e)
         Log.debug(e) { "Stacktrace:" }
     }
 }

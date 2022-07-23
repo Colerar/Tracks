@@ -1,6 +1,5 @@
 package moe.sdl.tracks.model
 
-import com.github.ajalt.clikt.output.TermUi
 import moe.sdl.tracks.config.emoji
 import moe.sdl.tracks.consts.PART_SHOW_LIMIT
 import moe.sdl.tracks.util.color
@@ -38,16 +37,16 @@ fun BangumiEpisode.toAnsi(): String {
 }
 
 fun List<BangumiEpisode>.printConsole(type: BangumiType, showAll: Boolean) {
-    TermUi.echo("@|bold 目标${type.toShow()}共有|@ @|yellow,bold $size|@ @|bold 集|@".color)
+    println("@|bold 目标${type.toShow()}共有|@ @|yellow,bold $size|@ @|bold 集|@".color)
     val tail = this.subList(0, min(this.size, PART_SHOW_LIMIT - 1))
     val last = this.lastOrNull() ?: return
 
     tail.forEach {
-        TermUi.echo("- ${it.toAnsi()}")
+        println("- ${it.toAnsi()}")
     }
 
     if (tail.lastIndex != lastIndex) {
-        TermUi.echo(" ......")
-        TermUi.echo("- ${last.toAnsi()}")
+        println(" ......")
+        println("- ${last.toAnsi()}")
     }
 }

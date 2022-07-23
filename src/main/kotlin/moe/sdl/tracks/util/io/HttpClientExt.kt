@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray
@@ -34,10 +35,8 @@ import okio.buffer
 import okio.sink
 import okio.source
 import java.io.File
-import kotlin.contracts.ExperimentalContracts
 import kotlin.properties.Delegates
 
-@OptIn(ExperimentalContracts::class)
 suspend fun HttpClient.downloadFile(
     url: String,
     dst: File,
@@ -114,6 +113,7 @@ suspend fun HttpClient.getRemoteFileSize(url: String, headBuilder: HttpRequestBu
  * `false` for return func.
  * @param partCount part to separate, default 1, i.e., download whole one
  */
+@OptIn(ExperimentalSerializationApi::class)
 suspend fun HttpClient.downloadResumable(
     url: String,
     dst: File,
