@@ -53,6 +53,8 @@ internal val protoBuf = ProtoBuf
 private const val WEB_USER_AGENT: String =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.2 Safari/605.1.15"
 
+val cookies by lazy { FileCookieStorage(FileSystem.SYSTEM, YABAPI_COOKIE_STORAGE_FILE.toPath()) }
+
 internal val client by lazy {
     initYabapi()
     val httpClient = HttpClient(CIO) {
@@ -78,7 +80,7 @@ internal val client by lazy {
             identity()
         }
         install(HttpCookies) {
-            storage = FileCookieStorage(FileSystem.SYSTEM, YABAPI_COOKIE_STORAGE_FILE.toPath())
+            storage = cookies
         }
         defaultRequest {
             header(HttpHeaders.Accept, "*/*")
