@@ -8,6 +8,6 @@ fun BasicInfoData.render(): Ansi {
     return """
         @|cyan,bold =============== 当前帐号信息 ===============|@
         @|bold 用户名： $username|@
-        @|bold 大会员： ${vip?.type.render()}|@
+        @|bold 大会员： ${vip.renderedType}|@
     """.trimIndent().color
 }
