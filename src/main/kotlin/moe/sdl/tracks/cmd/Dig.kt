@@ -658,7 +658,7 @@ class Dig : CliktCommand(
 
         suspend fun downloadStream(dst: File, track: DashTrack, url: String, size: Size) {
             val filesRef = atomic<List<File>>(emptyList())
-            downloadStreamAndShow(dst, size, scope, filesRef) {
+            downloadStreamAndShow("${aid.bv} - ${track.mimeType}", dst, size, scope, filesRef) {
                 client.client.downloadStream(
                     url, dst, partCount = multipart.toLong(), scope = scope,
                     filesRef, setOf(track.id.toString(), track.codec.toString(), size.bytes.toString()) + keys,
@@ -890,6 +890,7 @@ class Dig : CliktCommand(
     }
 
     private suspend fun downloadStreamAndShow(
+        name: String,
         dst: File,
         size: Size,
         scope: CoroutineScope,
@@ -916,7 +917,7 @@ class Dig : CliktCommand(
                         delay(100)
                     }
                 }
-                val printJob = scope.progressBar(cur, size.bytes)
+                val printJob = scope.progressBar(name, cur, size.bytes)
                 printJob.invokeOnCompletion { countJob.cancel() }
                 joinAll(downJob)
                 delay(300)

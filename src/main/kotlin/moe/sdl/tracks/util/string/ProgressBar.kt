@@ -8,46 +8,31 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
+import me.tongfei.progressbar.ProgressBar
 import moe.sdl.tracks.config.tracksPreference
-import kotlin.math.max
-import kotlin.math.min
+import kotlin.math.roundToLong
 
 fun CoroutineScope.progressBar(
+    task: String,
     cur: AtomicLong,
     total: Long,
     freshInterval: Long = tracksPreference.show.progressInterval,
-    length: Int = 50,
-    mark: String = "#",
 ): Job = launch {
-    var lastLen = 0
     val start = Clock.System.now()
-    while (isActive) {
-        val rate = (cur.value.toDouble() / total.toDouble())
-        var str = ""
-        val downloadLen = (length * rate).toInt()
-        repeat(min(downloadLen, length)) {
-            str += mark
+    ProgressBar(task, Size(total).mib.roundToLong()).use {
+        while (isActive) {
+            val rate = (cur.value.toDouble() / total.toDouble())
+            val deltaDuration = Clock.System.now() - start
+            val delta = deltaDuration.inWholeMilliseconds
+            val avg = if (delta > 0) {
+                Size(cur.value).toBandwidthMs(delta).toBytesBandwidth()
+            } else BytesBandwidth(0)
+            it.extraMessage = if (avg.kibPerS < 1) {
+                "Loading..."
+            } else avg.toShow()
+            it.stepTo(Size(cur.value).mib.roundToLong())
+            if (rate >= 1) cancel("Download Complete")
+            delay(freshInterval)
         }
-        str += " "
-        repeat(max(length - downloadLen, 0)) {
-            str += " "
-        }
-        str += String.format("%.1f%%", min(rate * 100, 100.0)).padEnd(7, ' ')
-        val deltaDuration = Clock.System.now() - start
-        val delta = deltaDuration.inWholeMilliseconds
-        val avg = if (delta > 0) Size(cur.value).toBandwidthMs(delta).toBytesBandwidth() else BytesBandwidth(0)
-        str += "avg: " + avg.toShow().padEnd(10, ' ')
-        val etaSeconds: Double = if (avg.bytes > 0L) (total.toDouble() - cur.value) / avg.bytes else 0.0
-        str += if (etaSeconds <= 0.1 && avg.bytes > 1) {
-            " costed: ${deltaDuration.toHms()}"
-        } else {
-            " eta: " + etaSeconds.toInt().secondsToDuration().padEnd(5, ' ')
-        }
-
-        print(StringBuilder("\u0008").repeat(lastLen))
-        print(str)
-        lastLen = str.length
-        if (rate >= 1) cancel("Download Complete")
-        delay(freshInterval)
     }
 }

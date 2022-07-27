@@ -62,6 +62,7 @@ dependencies {
     // cli
     implementation("com.github.ajalt.clikt:clikt:_")
     implementation("org.fusesource.jansi:jansi:_")
+    implementation("me.tongfei:progressbar:_")
     // FFmpeg cli wrapper
     implementation("net.bramp.ffmpeg:ffmpeg:_")
     // for turning off noisy log
