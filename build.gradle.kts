@@ -59,6 +59,8 @@ dependencies {
     implementation("moe.sdl.yabapi:yabapi-core-jvm:_")
     // file system
     implementation(Square.okio)
+    // qrcode
+    implementation("io.github.g0dkar:qrcode-kotlin-jvm:_")
     // cli
     implementation("com.github.ajalt.clikt:clikt:_")
     implementation("org.fusesource.jansi:jansi:_")
