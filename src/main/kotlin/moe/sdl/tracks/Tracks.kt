@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import moe.sdl.tracks.cmd.Config
 import moe.sdl.tracks.cmd.Dig
+import moe.sdl.tracks.cmd.Live
 import moe.sdl.tracks.cmd.Login
 import moe.sdl.tracks.cmd.Version
 import moe.sdl.tracks.config.VERSION
@@ -15,6 +16,7 @@ import moe.sdl.tracks.util.OsType
 import moe.sdl.tracks.util.color
 import moe.sdl.tracks.util.osType
 import org.fusesource.jansi.AnsiConsole
+import org.slf4j.impl.SimpleLogger
 import java.nio.channels.UnresolvedAddressException
 
 fun main(args: Array<String>) {
@@ -29,10 +31,10 @@ fun main(args: Array<String>) {
         tracksPreference.first = false
     }
     if (tracksPreference.enableColor) AnsiConsole.systemInstall()
-    System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, if (debug) "DEBUG" else "ERROR")
+    System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, if (debug) "DEBUG" else "ERROR")
     try {
         MainCommand()
-            .subcommands(Dig(), Login(), Config(), Version())
+            .subcommands(Dig(), Live(), Login(), Config(), Version())
             .main(args)
     } catch (e: UnresolvedAddressException) {
         println("@|red,bold 网络错误！可能是网络不稳定或已离线|@".color)

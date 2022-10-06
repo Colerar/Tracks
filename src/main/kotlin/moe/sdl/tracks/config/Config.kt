@@ -60,7 +60,7 @@ private val userAgentsMap = mapOf(
 
 val cookies by lazy { FileCookieStorage(FileSystem.SYSTEM, YABAPI_COOKIE_STORAGE_FILE.toPath()) }
 
-internal val client by lazy {
+val client by lazy {
     initYabapi()
     val httpClient = HttpClient(CIO) {
         engine {

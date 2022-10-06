@@ -34,3 +34,6 @@ suspend fun trimBiliNumber(input: String): String? {
     }
     return null
 }
+
+private val comma = Regex("[,，]")
+fun String.splitToList() = split(comma).filterNot { it.isBlank() }

@@ -6,6 +6,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.isDistantFuture
 import kotlinx.datetime.toLocalDateTime
+import moe.sdl.yabapi.data.stream.LiveQnQuality
 import kotlin.math.pow
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
@@ -53,6 +54,16 @@ internal fun Int.secondsToDuration(): String {
 
 @Suppress("NOTHING_TO_INLINE")
 private inline fun Any.padZero(length: Int = 2) = this.toString().padStart(length, '0')
+
+fun LiveQnQuality.toReadable() = when (this) {
+    LiveQnQuality.FAST -> "流畅"
+    LiveQnQuality.STANDARD -> "高清"
+    LiveQnQuality.HIGH -> "超清"
+    LiveQnQuality.BLU_RAY -> "蓝光"
+    LiveQnQuality.BLU_RAY_DOLBY -> "蓝光(杜比)"
+    LiveQnQuality.ORIGIN -> "原画"
+    LiveQnQuality.UHD -> "4K"
+}
 
 /**
  * UNIX 秒单位 时间戳 转 相对时间

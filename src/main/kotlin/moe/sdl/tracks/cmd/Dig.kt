@@ -61,6 +61,7 @@ import moe.sdl.tracks.util.placeHolderContext
 import moe.sdl.tracks.util.placeHolderResult
 import moe.sdl.tracks.util.string.Size
 import moe.sdl.tracks.util.string.progressBar
+import moe.sdl.tracks.util.string.splitToList
 import moe.sdl.tracks.util.string.toStringOrDefault
 import moe.sdl.tracks.util.string.trimBiliNumber
 import moe.sdl.yabapi.api.getBangumiDetailedByEp
@@ -190,18 +191,16 @@ class Dig : CliktCommand(
         "-videocodec", "-codec", "-cv",
         help = "视频编码优先级, 默认 [avc, hevc, av1], 可用 [$availableVideoCodec]"
     ).convert { str ->
-        str.split(Regex("[,，]"))
-            .filterNot { it.isEmpty() || it.isBlank() }
-            .map {
-                when {
-                    it.matches(Regex("""^\s*(hevc|h\.?265)\s*$""", RegexOption.IGNORE_CASE)) -> CodecId.HEVC
-                    it.matches(Regex("""^\s*(avc|h\.?264)\s*$""", RegexOption.IGNORE_CASE)) -> CodecId.AVC
-                    it.matches(Regex("""^\s*av1\s*$""", RegexOption.IGNORE_CASE)) -> CodecId.AV1
-                    else -> throw UsageError("未知的视频编码 '$it', 请检查输入后重试, 可用 [$availableVideoCodec]")
-                }
-            }.also {
-                Log.debug { "Priority of video codecs: ${it.joinToString()}" }
+        str.splitToList().map {
+            when {
+                it.matches(Regex("""^\s*(hevc|h\.?265)\s*$""", RegexOption.IGNORE_CASE)) -> CodecId.HEVC
+                it.matches(Regex("""^\s*(avc|h\.?264)\s*$""", RegexOption.IGNORE_CASE)) -> CodecId.AVC
+                it.matches(Regex("""^\s*av1\s*$""", RegexOption.IGNORE_CASE)) -> CodecId.AV1
+                else -> throw UsageError("未知的视频编码 '$it', 请检查输入后重试, 可用 [$availableVideoCodec]")
             }
+        }.also {
+            Log.debug { "Priority of video codecs: ${it.joinToString()}" }
+        }
     }.default(listOf(CodecId.AVC, CodecId.HEVC, CodecId.AV1))
 
     private val audioQuality by option(
@@ -247,7 +246,11 @@ class Dig : CliktCommand(
             Converter.values().joinToString(",") { it.code }
         }]"
     ).convert { str ->
-        Converter(str) ?: throw UsageError("转换目标 [$str] 输入错误! 可用选项: [${Converter.values().joinToString { it.code }}]")
+        Converter(str) ?: throw UsageError(
+            "转换目标 [$str] 输入错误! 可用选项: [${
+                Converter.values().joinToString { it.code }
+            }]"
+        )
     }.default(Converter.SIMPLIFIED)
 
     private val zhConvertKeepOrigin by option(
@@ -266,7 +269,12 @@ class Dig : CliktCommand(
         help = "显示所有分P, 默认关闭"
     ).flag(default = false)
 
-    private val targetParts by option("-p", "-part", "-parts", help = "视频分 P, 支持范围选择, 形如 '3-5', '0' 表示全部")
+    private val targetParts by option(
+        "-p",
+        "-part",
+        "-parts",
+        help = "视频分 P, 支持范围选择, 形如 '3-5', '0' 表示全部"
+    )
         .convert { opt ->
             val partSyntaxErr by lazy {
                 UsageError(
@@ -317,11 +325,13 @@ class Dig : CliktCommand(
                     seasonId = trimmed.lowercase().removePrefix("ss").toIntOrNull()
                         ?: errorExit { "ss 号输入有误！请检查后重试" }
                 )
+
             trimmed.startsWith("ep", ignoreCase = true) ->
                 client.getBangumiDetailedByEp(
                     epId = trimmed.lowercase().removePrefix("ep").toIntOrNull()
                         ?: errorExit { "ep 号输入有误！请检查后重试" }
                 )
+
             else -> errorExit { "解析链接失败！请检查后重试" }
         }
         when (info) {
@@ -452,6 +462,7 @@ class Dig : CliktCommand(
                     }
                 }
             }
+
             else -> errorExit(withHelp = false) { "集数选择遇到了意料外的情况, 可能是无可用集数" }
         }
 
@@ -846,6 +857,7 @@ class Dig : CliktCommand(
 
                 muxStream(audioDst, videoDst, chapterDst, final, scope)
             }
+
             else -> echo("@|cyan,bold 无视频或音频, 跳过混流...|@".color)
         }
     }
