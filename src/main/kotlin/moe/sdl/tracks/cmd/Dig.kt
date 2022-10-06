@@ -278,32 +278,31 @@ class Dig : CliktCommand(
         "-part",
         "-parts",
         help = "视频分 P, 支持范围选择, 形如 '3-5', '0' 表示全部"
-    )
-        .convert { opt ->
-            val partSyntaxErr by lazy {
-                UsageError(
-                    """
+    ).convert { opt ->
+        val partSyntaxErr by lazy {
+            UsageError(
+                """
                         分 P 解析失败! 请检查语法:
                         1. 至少指定一个分 P
                         2. 可以单独指定一个分 P 如 '12', 也可指定分 P 范围 如 '1-4' '12-5'
                         3. 多个块可使用 ',' (全|半角皆可) 连接 如 '1-12,14-17', 逗号可尾随 如 '1,2,3,'
                         4. '0' 表示全部
                     """.trimIndent(),
-                    this, context
-                )
-            }
-            if (!Regex("""(\d+(-\d+)?[,，]?)+""").matches(opt))
-                throw partSyntaxErr
-            opt.replace('，', ',').split(',').asSequence()
-                .filter { it.isNotBlank() && it.isNotEmpty() }
-                .map {
-                    val values = Regex("""^(\d+)(-)?(\d+)?$""").find(it)?.groupValues?.drop(1) ?: throw partSyntaxErr
-                    if (values.size == 2) throw partSyntaxErr
-                    val fst = values.getOrNull(0)?.toIntOrNull() ?: throw partSyntaxErr
-                    val lst = values.getOrNull(2)?.toIntOrNull() ?: fst
-                    (min(fst, lst)..max(fst, lst)).toList()
-                }.flatten().distinct().toList()
+                this, context
+            )
         }
+        if (!Regex("""(\d+(-\d+)?[,，]?)+""").matches(opt))
+            throw partSyntaxErr
+        opt.replace('，', ',').split(',').asSequence()
+            .filter { it.isNotBlank() && it.isNotEmpty() }
+            .map {
+                val values = Regex("""^(\d+)(-)?(\d+)?$""").find(it)?.groupValues?.drop(1) ?: throw partSyntaxErr
+                if (values.size == 2) throw partSyntaxErr
+                val fst = values.getOrNull(0)?.toLongOrNull() ?: throw partSyntaxErr
+                val lst = values.getOrNull(2)?.toLongOrNull() ?: fst
+                (min(fst, lst)..max(fst, lst)).toList()
+            }.flatten().distinct().toList()
+    }
 
     private val latestEpisode by option("-last-part", "-latest-episode", "-lp", help = "是否选择最新/最后分P")
         .flag("-not-last-part", "-nlp")
@@ -316,7 +315,7 @@ class Dig : CliktCommand(
         echo("获取 @|yellow,bold [$trimmed]|@ 视频信息...".color)
         if (trimmed.startsWith("md", ignoreCase = true)) {
             val info = client.getBangumiReviewInfo(
-                mediaId = trimmed.lowercase().removePrefix("md").toIntOrNull()
+                mediaId = trimmed.lowercase().removePrefix("md").toLongOrNull()
                     ?: errorExit { "md 号输入有误！请检查后重试" }
             )
             trimmed = "ss" + info.result?.media?.seasonId
@@ -326,13 +325,13 @@ class Dig : CliktCommand(
             trimmed.startsWith("bv", ignoreCase = true) -> client.getVideoInfo(trimmed)
             trimmed.startsWith("ss", ignoreCase = true) ->
                 client.getBangumiDetailedBySeason(
-                    seasonId = trimmed.lowercase().removePrefix("ss").toIntOrNull()
+                    seasonId = trimmed.lowercase().removePrefix("ss").toLongOrNull()
                         ?: errorExit { "ss 号输入有误！请检查后重试" }
                 )
 
             trimmed.startsWith("ep", ignoreCase = true) ->
                 client.getBangumiDetailedByEp(
-                    epId = trimmed.lowercase().removePrefix("ep").toIntOrNull()
+                    epId = trimmed.lowercase().removePrefix("ep").toLongOrNull()
                         ?: errorExit { "ep 号输入有误！请检查后重试" }
                 )
 
@@ -362,7 +361,7 @@ class Dig : CliktCommand(
 
     private suspend fun processVideo(info: VideoInfoGetResponse, scope: CoroutineScope) {
         val targets by lazy {
-            targetParts ?: listOf(1)
+            targetParts ?: listOf(1L)
         }
         val model = VideoResult(info)
         echo(model.toAnsi())
@@ -425,12 +424,12 @@ class Dig : CliktCommand(
         echo(info.data?.toAnsi())
         val isEpisode = id.startsWith("ep")
         val isSeason = id.startsWith("ss")
-        val numId = id.drop(2).toIntOrNull() ?: errorExit(withHelp = false) { "EP 或 SS 号解析失败, id: $id" }
+        val numId = id.drop(2).toLongOrNull() ?: errorExit(withHelp = false) { "EP 或 SS 号解析失败, id: $id" }
         val bangumiContext = basicContext + info.data!!.placeHolderResult
         val dst = bangumiContext.buildFile(tracksPreference.fileDir.coverName)
         var episodes = info.data?.episodes ?: infoExit { "无可用集数, 退出下载" }
         echo()
-        episodes.printConsole(info.data!!.type, showAllParts)
+        episodes.printConsole(info.data!!.type)
         if (onlyInfo) return
         echo()
 
@@ -461,7 +460,7 @@ class Dig : CliktCommand(
                         episodes
                     } else {
                         episodes.filterIndexed { index, _ ->
-                            targetParts!!.contains(index + 1)
+                            targetParts!!.contains(index + 1L)
                         }
                     }
                 }
@@ -653,8 +652,8 @@ class Dig : CliktCommand(
 
     private suspend fun downloadAndMux(
         data: AbstractStreamData,
-        aid: Int,
-        cid: Int,
+        aid: Long,
+        cid: Long,
         scope: CoroutineScope,
         placeholderContext: PlaceholderContext,
         keys: Set<String>,

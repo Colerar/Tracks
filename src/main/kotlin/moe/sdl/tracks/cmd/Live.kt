@@ -10,7 +10,7 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
-import com.github.ajalt.clikt.parameters.types.int
+import com.github.ajalt.clikt.parameters.types.long
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.joinAll
@@ -43,7 +43,7 @@ private val OPEN_CMD = if (osType == OsType.WINDOWS) "start" else "open"
 class Live : CliktCommand(
     "获取直播流链接", name = "live"
 ) {
-    val ids by argument("ID", help = "直播房间号").int().multiple(true).unique()
+    val ids by argument("ID", help = "直播房间号").long().multiple(true).unique()
 
     val player by option(
         "-p", "-player", help = "使用指定播放器打开, 可用 [iina, potplayer, vlc, nplayer, custom]"

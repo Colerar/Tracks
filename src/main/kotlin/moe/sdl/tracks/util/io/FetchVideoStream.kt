@@ -33,18 +33,18 @@ val highestRequest = StreamRequest(
 
 suspend inline fun BiliClient.fetchVideoDashTracks(
     bid: String,
-    cid: Int,
+    cid: Long,
     context: CoroutineContext = this.context,
 ): VideoStreamResponse = fetchVideoStream(bid, cid, highestRequest, context)
 
 suspend inline fun BiliClient.fetchVideoDashTracks(
-    aid: Int,
-    cid: Int,
+    aid: Long,
+    cid: Long,
     context: CoroutineContext = this.context,
 ): VideoStreamResponse = fetchVideoDashTracks(aid.bv, cid, context)
 
 suspend inline fun BiliClient.fetchPgcDashTracks(
-    epId: Int,
+    epId: Long,
     context: CoroutineContext = this.context,
 ): PgcStreamResponse = fetchPgcStream(epId, highestRequest, context)
 

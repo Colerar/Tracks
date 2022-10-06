@@ -36,7 +36,7 @@ fun BangumiEpisode.toAnsi(): String {
     return """$paddedPart - $longTitle [$duration]"""
 }
 
-fun List<BangumiEpisode>.printConsole(type: BangumiType, showAll: Boolean) {
+fun List<BangumiEpisode>.printConsole(type: BangumiType) {
     println("@|bold 目标${type.toShow()}共有|@ @|yellow,bold $size|@ @|bold 集|@".color)
     val tail = this.subList(0, min(this.size, PART_SHOW_LIMIT - 1))
     val last = this.lastOrNull() ?: return

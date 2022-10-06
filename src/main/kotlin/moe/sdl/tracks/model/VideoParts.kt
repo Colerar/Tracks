@@ -12,7 +12,7 @@ fun List<VideoPart>.printConsole(showAll: Boolean = false) {
     asSequence().filterIndexed { idx, _ ->
         idx <= PART_SHOW_LIMIT - 2 || idx == lastIndex || showAll
     }.forEach { part ->
-        if (part.part == size && part.part != 1 && !showAll) println(" ......")
+        if (part.part == size.toLong() && part.part != 1L && !showAll) println(" ......")
         println("- ${part.toAnsi()}")
     }
 }
