@@ -40,6 +40,7 @@ hs_err_pid*
 .idea/vcs.xml
 .idea/jsLibraryMappings.xml
 .idea/artifacts
+.idea/kotlinc.xml
 
 # allowed dictionaries
 !.idea/dictionaries/hbj.xml
@@ -180,7 +181,6 @@ $RECYCLE.BIN/
 .idea/**/gradle.xml
 .idea/**/libraries
 
-.idea/artifacts
 .idea/compiler.xml
 .idea/jarRepositories.xml
 .idea/modules.xml
@@ -193,22 +193,11 @@ cmake-build-*/
 
 .idea/**/mongoSettings.xml
 
-*.iws
-
 out/
-
-.idea_modules/
-
-atlassian-ide-plugin.xml
 
 .idea/replstate.xml
 
 .idea/sonarlint/
-
-com_crashlytics_export_strings.xml
-crashlytics.properties
-crashlytics-build.properties
-fabric.properties
 
 .idea/httpRequests
 
