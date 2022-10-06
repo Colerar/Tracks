@@ -18,18 +18,10 @@ import moe.sdl.tracks.util.osType
 import org.fusesource.jansi.AnsiConsole
 import org.slf4j.impl.SimpleLogger
 import java.nio.channels.UnresolvedAddressException
+import java.util.UUID
 
 fun main(args: Array<String>) {
-    if (tracksPreference.first && osType == OsType.WINDOWS) {
-        println(
-            """ 
-            @|bold 检测到您是首次运行本程序, 并且当前运行环境是 Windows|@
-            @|bold 为了更好的使用体验, 强烈建议您, 不要将本程序运行于默认 cmd / powershell 上|@
-            @|bold 推荐使用 Windows Terminal 等现代终端, 下载地址: https://aka.ms/terminal|@
-            """.trimIndent().color
-        )
-        tracksPreference.first = false
-    }
+    notifyWindowsUser()
     if (tracksPreference.enableColor) AnsiConsole.systemInstall()
     System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, if (debug) "DEBUG" else "ERROR")
     try {
@@ -41,6 +33,26 @@ fun main(args: Array<String>) {
         println(e)
         Log.debug(e) { "Stacktrace:" }
     }
+}
+
+fun notifyWindowsUser() {
+    if (!tracksPreference.first) return
+    tracksPreference.first = false
+    if (osType != OsType.WINDOWS) return
+    val wt: String? = System.getenv("WT_SESSION")
+    val success = wt?.let {
+        runCatching {
+            UUID.fromString(it)
+        }.isSuccess
+    } == true
+    if (success) return
+    println(
+        """ 
+        !! 检测到您是首次运行本程序, 并且当前运行环境是 Windows
+        !! 为了更好的使用体验, 强烈建议您, 不要将本程序运行于默认 cmd / powershell 上
+        !! 推荐使用 Windows Terminal 等现代终端, 下载地址: https://aka.ms/terminal
+        """.trimIndent()
+    )
 }
 
 class MainCommand : CliktCommand(
