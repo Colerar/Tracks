@@ -5,11 +5,11 @@ import io.ktor.client.engine.ProxyBuilder
 import io.ktor.client.engine.ProxyType
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.engine.http
-import io.ktor.client.features.UserAgent
-import io.ktor.client.features.compression.ContentEncoding
-import io.ktor.client.features.cookies.HttpCookies
-import io.ktor.client.features.defaultRequest
-import io.ktor.client.features.websocket.WebSockets
+import io.ktor.client.plugins.UserAgent
+import io.ktor.client.plugins.compression.ContentEncoding
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.cookies.HttpCookies
+import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import kotlinx.serialization.ExperimentalSerializationApi

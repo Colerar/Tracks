@@ -1,12 +1,11 @@
 package moe.sdl.tracks.util.io
 
 import io.ktor.client.HttpClient
-import io.ktor.client.call.receive
+import io.ktor.client.call.body
 import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.client.request.get
-import io.ktor.client.request.head
 import io.ktor.client.request.header
-import io.ktor.client.statement.HttpStatement
+import io.ktor.client.request.prepareGet
+import io.ktor.client.request.prepareHead
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentLength
 import io.ktor.utils.io.ByteReadChannel
@@ -42,10 +41,10 @@ suspend fun HttpClient.downloadFile(
     dst: File,
     getBuilder: HttpRequestBuilder.() -> Unit = {},
 ) = withContext(Dispatchers.IO) {
-    this@downloadFile.get<HttpStatement>(url, getBuilder).execute {
-        val channel: ByteReadChannel = it.receive()
+    this@downloadFile.prepareGet(url, getBuilder).execute {
+        val channel: ByteReadChannel = it.body()
         while (!channel.isClosedForRead) {
-            val packet = channel.readRemaining(DEFAULT_BUFFER_SIZE.toLong(), 0)
+            val packet = channel.readRemaining(DEFAULT_BUFFER_SIZE.toLong())
             while (packet.isNotEmpty) {
                 val bytes = packet.readBytes()
                 dst.appendBytes(bytes)
@@ -103,7 +102,7 @@ private fun SideData(total: Long, part: Long, files: List<File>, key: Set<String
 }
 
 suspend fun HttpClient.getRemoteFileSize(url: String, headBuilder: HttpRequestBuilder.() -> Unit = {}): Long =
-    head<HttpStatement>(url, headBuilder).execute {
+    prepareHead(url, headBuilder).execute {
         it.headers[HttpHeaders.ContentLength]?.toLong() ?: error("Failed to get total length for $url")
     }
 

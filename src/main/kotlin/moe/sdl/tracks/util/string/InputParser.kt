@@ -1,7 +1,8 @@
 package moe.sdl.tracks.util.string
 
-import io.ktor.client.features.RedirectResponseException
+import io.ktor.client.plugins.RedirectResponseException
 import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
 import moe.sdl.tracks.config.client
 import moe.sdl.tracks.util.color
 
@@ -21,7 +22,7 @@ suspend fun trimBiliNumber(input: String): String? {
     if (shortLinkRegex.matches(s)) {
         println("解析短链接 @|yellow,bold [$input]|@".color)
         try {
-            client.client.config { followRedirects = false }.get<String>(s)
+            client.client.config { followRedirects = false }.get(s).bodyAsText()
         } catch (e: RedirectResponseException) {
             s = e.response.headers["Location"] ?: run {
                 println("@|red 解析短链接失败~输入长链接或重试看看哦~|@".color)
