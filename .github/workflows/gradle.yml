@@ -33,11 +33,12 @@ jobs:
         java-version: '17'
         distribution: 'adopt'
 
-    - name: Build with Gradle
-      uses: gradle/gradle-build-action@v2
+    - uses: burrunan/gradle-cache-action@v1
+      name: Build with Gradle
       with:
+        job-id: checker
         arguments: distZip
-        gradle-version: 7.4
+        gradle-version: wrapper
 
     - name: upload artifact
       uses: actions/upload-artifact@v2
