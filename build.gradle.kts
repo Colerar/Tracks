@@ -81,28 +81,6 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     kotlinOptions.freeCompilerArgs += "-opt-in=kotlin.RequiresOptIn"
 }
 
-tasks.installDist {
-    val map = listOf("./build/saved/config/", "./build/saved/storage/", "./build/saved/.debug").map {
-        File(it) to File(it.replaceFirst(".", "./build/install/tracks/lib"))
-    }
-    doFirst {
-        val dir = File("./build/saved/")
-        if (dir.exists()) dir.deleteRecursively()
-        map.forEach { (target, source) ->
-            if (!source.exists()) return@forEach
-            if (source.isDirectory) source.copyRecursively(target, true)
-            if (source.isFile) source.copyTo(target, true)
-        }
-    }
-    doLast {
-        map.forEach { (source, target) ->
-            if (!source.exists()) return@forEach
-            if (source.isDirectory) source.copyRecursively(target, true)
-            if (source.isFile) source.copyTo(target, true)
-        }
-    }
-}
-
 fun BuildConfigSourceSet.string(name: String, value: String) = buildConfigField("String", name, "\"$value\"")
 fun BuildConfigSourceSet.stringNullable(name: String, value: String?) =
     buildConfigField("String?", name, value?.let { "\"$value\"" } ?: "null")
