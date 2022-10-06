@@ -12,6 +12,8 @@ import com.github.ajalt.clikt.parameters.options.switch
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
 import io.ktor.client.HttpClient
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
 import kotlinx.atomicfu.AtomicRef
 import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.getAndUpdate
@@ -26,6 +28,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.decodeFromString
 import moe.sdl.tracks.config.client
 import moe.sdl.tracks.config.tracksPreference
 import moe.sdl.tracks.enums.DownloadType
@@ -64,10 +67,10 @@ import moe.sdl.tracks.util.string.progressBar
 import moe.sdl.tracks.util.string.splitToList
 import moe.sdl.tracks.util.string.toStringOrDefault
 import moe.sdl.tracks.util.string.trimBiliNumber
+import moe.sdl.yabapi.Yabapi
 import moe.sdl.yabapi.api.getBangumiDetailedByEp
 import moe.sdl.yabapi.api.getBangumiDetailedBySeason
 import moe.sdl.yabapi.api.getBangumiReviewInfo
-import moe.sdl.yabapi.api.getSubtitleContent
 import moe.sdl.yabapi.api.getVideoInfo
 import moe.sdl.yabapi.api.getVideoPlayerInfo
 import moe.sdl.yabapi.data.GeneralCode
@@ -78,6 +81,7 @@ import moe.sdl.yabapi.data.stream.DashStream
 import moe.sdl.yabapi.data.stream.DashTrack
 import moe.sdl.yabapi.data.stream.QnQuality
 import moe.sdl.yabapi.data.stream.VideoStreamData
+import moe.sdl.yabapi.data.video.SubtitleContent
 import moe.sdl.yabapi.data.video.SubtitleTrack
 import moe.sdl.yabapi.data.video.VideoInfoGetResponse
 import moe.sdl.yabapi.data.video.encodeToSrt
@@ -722,12 +726,14 @@ class Dig : CliktCommand(
                 tracks.forEachIndexed { idx, it ->
                     if (idx >= 1) echo()
                     echo("@|bold 正在下载：|@ ${it.languageName}[${it.language}]".color)
-                    val srt = client.getSubtitleContent(
+                    val subtitle = client.client.get(
                         it.subtitleUrl ?: run {
                             echo("@|red 无法获取当前字幕地址, 跳过下载|@".color)
                             return@forEachIndexed
                         }
-                    ).body.encodeToSrt()
+                    ).bodyAsText()
+                    val srt = Yabapi.defaultJson.value
+                        .decodeFromString<SubtitleContent>(subtitle).body.encodeToSrt()
                     val fileDst by lazy {
                         with(placeholderContext + it.placeHolderContext) {
                             buildFile(tracksPreference.fileDir.subtitleName)
