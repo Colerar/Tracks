@@ -7,8 +7,8 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.engine.http
 import io.ktor.client.plugins.UserAgent
 import io.ktor.client.plugins.compression.ContentEncoding
-import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.cookies.HttpCookies
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
@@ -64,6 +64,7 @@ val client by lazy {
     initYabapi()
     val httpClient = HttpClient(CIO) {
         engine {
+            requestTimeout = 0
             proxy = with(tracksPreference.proxy) {
                 if (enable && type == ProxyType.HTTP && url != null) {
                     ProxyBuilder.http(url!!)
