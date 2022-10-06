@@ -49,9 +49,14 @@ internal val prettyPrintJson = Json {
 @OptIn(ExperimentalSerializationApi::class)
 internal val protoBuf = ProtoBuf
 
-// Safari + MacOS User Agent
-private const val WEB_USER_AGENT: String =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.2 Safari/605.1.15"
+private val DEFAULT_USER_AGENT =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15"
+
+private val userAgentsMap = mapOf(
+    "safari" to DEFAULT_USER_AGENT,
+    "firefox" to "Mozilla/5.0 (Macintosh; Intel Mac OS X 12.6; rv:105.0) Gecko/20100101 Firefox/105.0",
+    "chrome" to "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36",
+)
 
 val cookies by lazy { FileCookieStorage(FileSystem.SYSTEM, YABAPI_COOKIE_STORAGE_FILE.toPath()) }
 
@@ -72,7 +77,12 @@ internal val client by lazy {
             this.pingInterval = 500
         }
         install(UserAgent) {
-            agent = WEB_USER_AGENT
+            val ua = tracksPreference.userAgent
+            agent = if (ua == null) {
+                DEFAULT_USER_AGENT
+            } else {
+                userAgentsMap[ua.lowercase()] ?: ua
+            }
         }
         install(ContentEncoding) {
             gzip()
@@ -100,7 +110,6 @@ internal fun initYabapi() = Yabapi.apply {
         yabapiLogLevel.getAndSet(
             if (debug) LogLevel.DEBUG else LogLevel.INFO
         )
-        @Suppress("deprecation")
         log.getAndSet { tag, _, throwable, message ->
             val msg by lazy { message().replace("\r?\n".toRegex(), "↩") }
             Log.debug(throwable) { "$tag $msg" }

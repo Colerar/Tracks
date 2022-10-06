@@ -141,6 +141,7 @@ private val keyMap by lazy {
             else throw UsageError("@|red 输入路径非 FFmpeg 路径: $abs|@".color.toString())
         }),
         "emoji" to ArgumentBoolean("是否开启 emoji", tracksPreference::emoji),
+        "user-agent" to ArgumentVariableStringNullable("要使用的 UserAgent", tracksPreference::userAgent),
         "proxy-enable" to ArgumentBoolean("代理状态", tracksPreference.proxy::enable),
         "proxy-url" to ArgumentVariableStringNullable("HTTP 代理地址", tracksPreference.proxy::url),
         "name-cover" to ArgumentVariableString("封面名称样式", tracksPreference.fileDir::coverName),
