@@ -30,7 +30,7 @@ alt="Maven Developer"/></a></p>
 <details>
 <summary>演示视频</summary>
 
-https://user-images.githubusercontent.com/62297254/154002139-1ac70e9f-0d05-4e9e-bd52-41460a676656.mp4
+https://user-images.githubusercontent.com/62297254/194572767-6bd0ab3c-c36d-4fe7-acfa-6224886cbda5.mp4
 
 </details>
 
