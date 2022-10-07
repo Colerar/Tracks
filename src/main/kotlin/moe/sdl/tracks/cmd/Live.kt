@@ -97,20 +97,24 @@ class Live : CliktCommand(
         )
     ).default(LiveQnQuality.ORIGIN)
 
-    private val defaultProtocols = listOf("http_hls", "http_stream")
+    private val defaultProtocols = listOf("http-hls", "http-stream")
     private val protocol by option(
         "-protocol", "-P", help = "协议优先级, 默认 $defaultProtocols"
     ).convert { str ->
         str.splitToList().map {
             val protocol = it.lowercase()
-            if (!defaultFormats.contains(protocol)) {
-                throw PrintMessage("""未知的协议 "$it", 可用: $$defaultProtocols""")
+            if (!defaultProtocols.contains(protocol)) {
+                throw PrintMessage("""未知的协议 "$it", 可用: $defaultProtocols""")
             }
             protocol
         }.also {
             Log.debug { "Priority of live protocols: ${it.joinToString()}" }
         }
-    }.default(defaultProtocols)
+    }.convert {
+        it.map {
+            it.replace('-', '_')
+        }
+    }.default(listOf("http_hls", "http_stream"))
 
     private val defaultFormats = listOf("ts", "fmp4", "flv")
     private val format by option(
