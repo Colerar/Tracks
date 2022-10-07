@@ -3,7 +3,7 @@
 
 
 ### Setup for tracks
-set -l tracks_subcommands 'dig login config version'
+set -l tracks_subcommands 'dig live login config version'
 
 ## Options for tracks
 complete -c tracks -n "not __fish_seen_subcommand_from $tracks_subcommands" -s g -o generate-completion -d '为 bash|zsh|fish 生成补全文件'
@@ -42,11 +42,27 @@ complete -c tracks -n "__fish_seen_subcommand_from dig" -s h -l help -d 'Show th
 complete -c tracks -n "__fish_seen_subcommand_from dig" -d 'B 站视频地址或 av BV ss ep md 等号码'
 
 
+### Setup for live
+complete -c tracks -f -n __fish_use_subcommand -a live -d '获取直播流链接'
+
+## Options for live
+complete -c tracks -n "__fish_seen_subcommand_from live" -s p -o player -r -d '使用指定播放器打开, 可用 [iina, potplayer, vlc, nplayer, custom]'
+complete -c tracks -n "__fish_seen_subcommand_from live" -s q -o quality -r -fa "fast 流畅 std standard 高清 high 超清 bluray blu-ray 蓝光 dolby 杜比 origin 原画 4k" -d '直播画质'
+complete -c tracks -n "__fish_seen_subcommand_from live" -o protocol -s P -r -d '协议优先级, 默认 [http_hls, http_stream]'
+complete -c tracks -n "__fish_seen_subcommand_from live" -o format -s f -r -d '封装优先级, 默认 [ts, fmp4, flv]'
+complete -c tracks -n "__fish_seen_subcommand_from live" -o codec -s c -r -d '编码优先级, 默认 [avc, hevc]'
+complete -c tracks -n "__fish_seen_subcommand_from live" -s h -l help -d 'Show this message and exit'
+
+## Arguments for live
+complete -c tracks -n "__fish_seen_subcommand_from live" -d '直播房间号'
+
+
 ### Setup for login
 complete -c tracks -f -n __fish_use_subcommand -a login -d '扫码登录'
 
 ## Options for login
 complete -c tracks -n "__fish_seen_subcommand_from login" -o sms -o qr -o cookie -o pwd -d '登录的方式，包括可以使用 [-sms, -qr, -cookie, -pwd]'
+complete -c tracks -n "__fish_seen_subcommand_from login" -o no-gui -s G -d '扫码不使用GUI'
 complete -c tracks -n "__fish_seen_subcommand_from login" -s h -l help -d 'Show this message and exit'
 
 
