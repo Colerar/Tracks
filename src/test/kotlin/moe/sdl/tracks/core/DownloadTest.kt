@@ -3,7 +3,9 @@ package moe.sdl.tracks.core
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
+import io.ktor.utils.io.core.readBytes
 import kotlinx.coroutines.runBlocking
 import moe.sdl.tracks.config.client
 import moe.sdl.tracks.util.io.downloadFile
@@ -33,13 +35,13 @@ class DownloadTest {
         val tr = client.fetchVideoDashTracks(bid, cid).data!!
             .filterDashTracks(CodecId.AVC, QnQuality.V360P)!!
         val idxRange = tr.segmentBase!!.indexRange
-        val bytes = client.client.get<ByteArray>(tr.baseUrl!!) {
+        val bytes = client.client.get(tr.baseUrl!!) {
             headers {
                 append(HttpHeaders.Range, "bytes=${idxRange!!}")
                 configureForBili()
             }
-        }
-        readSidx(bytes)
+        }.bodyAsChannel()
+        readSidx(bytes.readRemaining().readBytes())
     }
 
     @Test
@@ -60,7 +62,7 @@ class DownloadTest {
 
     @Test
     fun pgcDownloadTest(): Unit = runBlocking {
-        val ep = 457775
+        val ep = 457775L
         val url = client
             .fetchPgcDashTracks(ep).data!!
             .filterDashTracks(CodecId.HEVC, QnQuality.V1080P)!!
@@ -76,7 +78,7 @@ class DownloadTest {
 
     @Test
     fun multiThreadDownloadTest() = runBlocking {
-        val ep = 107856
+        val ep = 107856L
         val url = client
             .fetchPgcDashTracks(ep).data!!
             .filterDashTracks(CodecId.AVC, QnQuality.V720P)!!
