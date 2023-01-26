@@ -18,6 +18,7 @@ import kotlinx.serialization.json.JsonBuilder
 import kotlinx.serialization.protobuf.ProtoBuf
 import moe.sdl.tracks.consts.JAR_DIR
 import moe.sdl.tracks.consts.YABAPI_COOKIE_STORAGE_FILE
+import moe.sdl.tracks.ktor.BilibiliReferrer
 import moe.sdl.tracks.util.Log
 import moe.sdl.yabapi.BiliClient
 import moe.sdl.yabapi.Yabapi
@@ -85,6 +86,8 @@ val client by lazy {
                 userAgentsMap[ua.lowercase()] ?: ua
             }
         }
+
+        install(BilibiliReferrer)
         install(ContentEncoding) {
             gzip()
             deflate()

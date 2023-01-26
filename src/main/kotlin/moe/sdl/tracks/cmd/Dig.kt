@@ -474,13 +474,16 @@ class Dig : CliktCommand(
         episodes.forEachIndexed { index, episode ->
             if (index >= 1) repeat(2) { echo() }
             echo("@|bold 下载${info.data!!.type.toShow()}单集:|@ ${episode.toAnsi()}".color)
-            val result = client.fetchPgcDashTracks(
-                episode.id ?: run {
-                    echo("@|yellow 无法获取本集 epid, 跳过下载|@".color)
-                    return@forEachIndexed
+            val epId = episode.id ?: run {
+                echo("@|yellow 无法获取本集 epid, 跳过下载|@".color)
+                return@forEachIndexed
+            }
+            val resp = client.fetchPgcDashTracks(epId)
+            val result = resp.data ?: run {
+                echo("@|red 获取 ep$epId 视频流失败, 跳过下载|@".color)
+                if (resp.message != null) {
+                    echo("@|red 错误信息: ${resp.message}|@".color)
                 }
-            ).data ?: run {
-                echo("@|red 获取 ep$numId 视频流失败, 跳过下载|@".color)
                 return@forEachIndexed
             }
             downloadAndMux(
