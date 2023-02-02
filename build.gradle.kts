@@ -13,7 +13,7 @@ plugins {
 }
 
 group = "moe.sdl.tracks"
-version = "1.4.1"
+version = "1.4.2"
 
 val commitHash by lazy {
     val commitHashCommand = "git rev-parse --short HEAD"
